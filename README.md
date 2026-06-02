@@ -1,5 +1,10 @@
 # Laravel Rome
 
+![Tests](https://img.shields.io/github/actions/workflow/status/emilienkopp/laravel-rome/tests.yml?label=tests)
+![PHP Version](https://img.shields.io/badge/php-^8.2-blue.svg?style=flat-square)
+![Laravel Version](https://img.shields.io/badge/laravel-^11.0-orange.svg?style=flat-square)
+[![Total Downloads](https://img.shields.io/packagist/dt/splitstack/laravel-rome.svg?style=flat-square)](https://packagist.org/packages/splitstack/laravel-rome)
+
 Make Database Views first-class citizens in your Laravel app.
 
 A Laravel package for managing database views: scaffolding, regeneration, and materialized view refresh. Supports PostgreSQL and MySQL, with optional multi-tenant iteration.
