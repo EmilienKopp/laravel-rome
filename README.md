@@ -1,5 +1,7 @@
 # Laravel Rome
 
+Make Database Views first-class citizens in your Laravel app.
+
 A Laravel package for managing database views: scaffolding, regeneration, and materialized view refresh. Supports PostgreSQL and MySQL, with optional multi-tenant iteration.
 
 ## Requirements
