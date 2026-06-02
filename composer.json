@@ -1,0 +1,56 @@
+{
+  "name": "splitstack/laravel-rome",
+  "description": "",
+  "type": "library",
+  "license": "MIT",
+  "keywords": [
+    "laravel",
+    "rome"
+  ],
+  "authors": [
+    {
+      "name": "Emilien Kopp",
+      "email": "emilien.kopp@gmail.com"
+    }
+  ],
+  "require": {
+    "php": "^8.2",
+    "illuminate/contracts": "^11.0|^12.0|^13.0",
+    "illuminate/database": "^11.0|^12.0|^13.0"
+  },
+  "require-dev": {
+    "laravel/pint": "^1.0",
+    "orchestra/testbench": "^9.0|^10.0",
+    "pestphp/pest": "^3.0",
+    "pestphp/pest-plugin-laravel": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Splitstack\\Rome\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Splitstack\\Rome\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "vendor/bin/pest",
+    "lint": "vendor/bin/pint"
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Splitstack\\Rome\\RomeServiceProvider"
+      ]
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
