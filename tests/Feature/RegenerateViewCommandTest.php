@@ -35,16 +35,9 @@ it('resolveConnections throws RomeConfigurationException when db_connections is 
 it('resolveTenants throws RomeConfigurationException when tenant_model is not configured', function () {
     config()->set('rome.tenant_model', null);
 
-    $command = $this->app->make(RegenerateViewCommand::class);
-    $command->setLaravel($this->app);
-
-    // bind a fake input so the command can read options
-    $command->setInput(new Symfony\Component\Console\Input\ArrayInput([]));
-    $command->setOutput(new Symfony\Component\Console\Output\NullOutput);
-
-    $method = new ReflectionMethod($command, 'resolveTenants');
-
-    $method->invoke($command);
+    // The exception is thrown before $this->option() is called, so no I/O setup is needed.
+    $method = new ReflectionMethod(RegenerateViewCommand::class, 'resolveTenants');
+    $method->invoke(new RegenerateViewCommand);
 })->throws(RomeConfigurationException::class, 'rome.tenant_model is not configured');
 
 // ---------------------------------------------------------------------------

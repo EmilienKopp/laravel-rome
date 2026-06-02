@@ -30,7 +30,7 @@ class RefreshMaterializedView implements ShouldQueue
         public string $viewName,
         public bool $concurrent = false,
         public ?string $tenantId = null,
-        public ?string $connection = null,
+        public ?string $dbConnection = null,
         array $onFailure = [],
     ) {
         $this->onFailure = array_map(
@@ -41,11 +41,11 @@ class RefreshMaterializedView implements ShouldQueue
 
     public function handle(): void
     {
-        $connection = $this->connection
+        $connection = $this->dbConnection
             ?? collect(config('rome.db_connections', []))->first()
             ?? throw new RomeConfigurationException(
                 'No connection specified and rome.db_connections is empty. '.
-                'Set it in config/rome.php or pass $connection to the job constructor.'
+                'Set it in config/rome.php or pass $dbConnection to the job constructor.'
             );
 
         $lockKey = "refresh_mat_view_{$this->tenantId}_{$this->viewName}";

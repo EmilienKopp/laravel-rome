@@ -21,7 +21,7 @@ trait RefreshableMaterializedView
             viewName: static::getMaterializedViewName(),
             concurrent: $concurrent,
             tenantId: $tenantId,
-            connection: $connection,
+            dbConnection: $connection,
         );
 
         if ($queue !== null) {
@@ -40,7 +40,7 @@ trait RefreshableMaterializedView
             viewName: static::getMaterializedViewName(),
             concurrent: $concurrent,
             tenantId: $tenantId,
-            connection: $connection,
+            dbConnection: $connection,
         )->delay(now()->addSeconds($seconds));
 
         if ($queue !== null) {
@@ -57,7 +57,7 @@ trait RefreshableMaterializedView
             viewName: static::getMaterializedViewName(),
             concurrent: $concurrent,
             tenantId: $tenantId,
-            connection: $connection,
+            dbConnection: $connection,
         );
     }
 }

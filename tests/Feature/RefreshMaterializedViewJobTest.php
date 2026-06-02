@@ -22,7 +22,7 @@ it('skips refresh and logs when the lock is already held by another process', fu
 
     Log::spy();
 
-    (new RefreshMaterializedView(viewName: 'my_view', connection: 'testing'))->handle();
+    (new RefreshMaterializedView(viewName: 'my_view', dbConnection: 'testing'))->handle();
 
     Log::shouldHaveReceived('info')
         ->with(
@@ -36,7 +36,7 @@ it('calls all onFailure callbacks when the job permanently fails', function () {
 
     $job = new RefreshMaterializedView(
         viewName: 'my_view',
-        connection: 'testing',
+        dbConnection: 'testing',
         onFailure: [
             function (\Throwable $e) use (&$results) {
                 $results[] = 'first: '.$e->getMessage();
