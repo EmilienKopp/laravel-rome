@@ -31,7 +31,7 @@ return [
 
     // Connections used for view operations. Must be configured.
     // Views are run against each connection in order.
-    'db_connections' => ['default'],
+    'db_connections' => ['default'],  // e.g. ['default'] or ['analytics', 'reporting']
 
     // --- Multi-tenancy (optional) ---
     'tenant_model'         => null,     // e.g. App\Models\Tenant::class
@@ -108,7 +108,7 @@ class OrderSummaryView extends ReadOnlyModel
 }
 ```
 
-**Primary key constraint:** `ReadOnlyModel` defaults to a non-incrementing string/char primary key named `id`. The proxied model must use the same primary key name and type, since all proxy lookups use `$this->getKey()` to locate the record in the proxied table. If your IDs are integers or use a different column name, override `$primaryKey`, `$keyType`, and `$incrementing` on both models.
+**Primary key:** `ReadOnlyModel` declares a non-incrementing primary key named `id` but makes no assumption about key type. Set `$keyType`, `$incrementing`, and any `$casts` on your model to match your actual key type. The proxied model must use the same primary key name and type, since all proxy lookups use `$this->getKey()` to locate the record in the proxied table.
 
 ### Proxied writes
 
@@ -122,21 +122,6 @@ $summary->update(['status' => 'shipped']); // returns OrderSummaryView
 ```
 
 Throws if no matching record exists in the proxied table.
-
-#### `create(array $attributes)`
-
-Delegates to the proxied model's `create()`. **Returns the proxied model instance** (e.g. `Order`), not the view record — the view may not reflect the new row immediately depending on your DB view definition.
-
-```php
-$order = OrderSummaryView::create(['customer_id' => 1, 'total' => 99]);
-// $order is an Order instance, not an OrderSummaryView
-```
-
-If you need the view record after creation, query for it explicitly:
-
-```php
-$summary = OrderSummaryView::find($order->id);
-```
 
 ### Accessing the underlying model
 

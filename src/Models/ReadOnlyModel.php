@@ -26,6 +26,9 @@ abstract class ReadOnlyModel extends Model
      */
     protected static $proxiedModelClass = null;
 
+    /**
+     * @throws ReadOnlyModelException
+     */
     public function delete()
     {
         throw new ReadOnlyModelException('Cannot delete from read-only model');
@@ -34,6 +37,8 @@ abstract class ReadOnlyModel extends Model
     /**
      * @param  array<string, mixed>  $attributes
      * @return static|null
+     *
+     * @throws ProxiedModelException
      */
     public function update(array $attributes = [], array $options = [])
     {
@@ -47,13 +52,11 @@ abstract class ReadOnlyModel extends Model
         return static::find($this->getKey());
     }
 
-    /** @param array<string, mixed> $attributes */
-    public static function create(array $attributes = []): Model
-    {
-        return static::getProxiedModelClass()::create($attributes);
-    }
-
-    /** @param array<string, mixed> $options */
+    /**
+     * @param  array<string, mixed>  $options
+     *
+     * @throws ReadOnlyModelException
+     */
     public function save(array $options = [])
     {
         throw new ReadOnlyModelException('Cannot save read-only model directly. Define a "proxiedModelClass" and use update() instead.');
@@ -90,6 +93,8 @@ abstract class ReadOnlyModel extends Model
 
     /**
      * Get the proxied model class name.
+     *
+     * @throws ProxiedModelException
      */
     protected static function getProxiedModelClass(): string
     {

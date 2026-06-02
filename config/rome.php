@@ -28,7 +28,7 @@ return [
     | Example: ['default'] or ['analytics', 'reporting']
     |
     */
-    'db_connections' => [],
+    'db_connections' => ['default'],
 
     /*
     |--------------------------------------------------------------------------
