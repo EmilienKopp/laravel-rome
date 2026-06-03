@@ -106,7 +106,9 @@ class RegenerateViewCommand extends Command
         $successCount = 0;
         $tenantFailures = [];
 
-        $tenants->eachCurrent(function ($tenant) use ($viewName, $viewsPath, &$successCount, &$tenantFailures) {
+        $iterator = method_exists($tenants, 'eachCurrent') ? 'eachCurrent' : 'each';
+
+        $tenants->{$iterator}(function ($tenant) use ($viewName, $viewsPath, &$successCount, &$tenantFailures) {
             $this->info("Processing tenant: {$tenant->name}");
 
             $connections = $this->resolveConnections();
@@ -144,7 +146,17 @@ class RegenerateViewCommand extends Command
      */
     protected function resolveConnections(): array
     {
-        $connections = config('rome.db_connections', []);
+        $connections = collect(config('rome.db_connections', []))
+            ->map(function ($connection) {
+                if ($connection !== 'default') {
+                    return $connection;
+                }
+
+                return config('database.default');
+            })
+            ->filter(static fn ($connection) => is_string($connection) && trim($connection) !== '')
+            ->values()
+            ->all();
 
         if (empty($connections)) {
             throw new RomeConfigurationException(
@@ -244,28 +256,13 @@ class RegenerateViewCommand extends Command
                 return [];
             }
 
-            $viewNames = [$viewName, $viewName.'_view'];
-            $success = false;
-            $lastError = null;
+            $targetViewName = $this->extractViewNameFromSql($sql) ?? $viewName;
+            $dropSql = $isMaterialized
+                ? $dialect->dropMaterializedView($targetViewName)
+                : $dialect->dropView($targetViewName);
 
-            foreach ($viewNames as $vName) {
-                try {
-                    $dropSql = $isMaterialized
-                        ? $dialect->dropMaterializedView($vName)
-                        : $dialect->dropView($vName);
-
-                    DB::connection($connection)->unprepared($dropSql);
-                    DB::connection($connection)->unprepared($sql);
-                    $success = true;
-                    break;
-                } catch (\Exception $e) {
-                    $lastError = $e;
-                }
-            }
-
-            if (! $success) {
-                return [['view' => $viewName, 'error' => 'Failed with either naming pattern. Last error: '.$lastError->getMessage()]];
-            }
+            DB::connection($connection)->unprepared($dropSql);
+            DB::connection($connection)->unprepared($sql);
 
             return [];
         } catch (\Exception $e) {
@@ -330,28 +327,13 @@ class RegenerateViewCommand extends Command
                     continue;
                 }
 
-                $viewNames = [$viewName, $viewName.'_view'];
-                $success = false;
-                $lastError = null;
+                $targetViewName = $this->extractViewNameFromSql($sql) ?? $viewName;
+                $dropSql = $isMaterialized
+                    ? $dialect->dropMaterializedView($targetViewName)
+                    : $dialect->dropView($targetViewName);
 
-                foreach ($viewNames as $vName) {
-                    try {
-                        $dropSql = $isMaterialized
-                            ? $dialect->dropMaterializedView($vName)
-                            : $dialect->dropView($vName);
-
-                        DB::connection($connection)->unprepared($dropSql);
-                        DB::connection($connection)->unprepared($sql);
-                        $success = true;
-                        break;
-                    } catch (\Exception $e) {
-                        $lastError = $e;
-                    }
-                }
-
-                if (! $success) {
-                    $failedViews[] = ['view' => $viewName, 'error' => 'Failed with either naming pattern. Last error: '.$lastError->getMessage()];
-                }
+                DB::connection($connection)->unprepared($dropSql);
+                DB::connection($connection)->unprepared($sql);
             } catch (\Exception $e) {
                 $failedViews[] = ['view' => $viewName, 'error' => $e->getMessage()];
             }
@@ -368,5 +350,21 @@ class RegenerateViewCommand extends Command
 
         return str_contains($normalized, 'CREATE MATERIALIZED VIEW') ||
                str_contains($normalized, 'CREATE OR REPLACE MATERIALIZED VIEW');
+    }
+
+    protected function extractViewNameFromSql(string $sql): ?string
+    {
+        $normalized = preg_replace('/--[^\n]*/', '', $sql);
+        $normalized = preg_replace('/\/\*[\s\S]*?\*\//', '', $normalized);
+
+        if (! is_string($normalized)) {
+            return null;
+        }
+
+        if (! preg_match('/CREATE\s+(?:OR\s+REPLACE\s+)?(?:MATERIALIZED\s+)?VIEW\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)/i', $normalized, $matches)) {
+            return null;
+        }
+
+        return $matches[1];
     }
 }

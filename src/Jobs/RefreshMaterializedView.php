@@ -41,12 +41,23 @@ class RefreshMaterializedView implements ShouldQueue
 
     public function handle(): void
     {
-        $connection = $this->dbConnection
+        $configuredConnection = $this->dbConnection
             ?? collect(config('rome.db_connections', []))->first()
             ?? throw new RomeConfigurationException(
                 'No connection specified and rome.db_connections is empty. '.
                 'Set it in config/rome.php or pass $dbConnection to the job constructor.'
             );
+
+        $connection = $configuredConnection === 'default'
+            ? config('database.default')
+            : $configuredConnection;
+
+        if (! is_string($connection) || trim($connection) === '') {
+            throw new RomeConfigurationException(
+                'Unable to resolve a valid database connection name. '.
+                'Set database.default or pass a concrete connection name.'
+            );
+        }
 
         $lockKey = "refresh_mat_view_{$this->tenantId}_{$this->viewName}";
         $lock = Cache::lock($lockKey, $this->timeout);

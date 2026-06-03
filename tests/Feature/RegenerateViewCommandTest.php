@@ -32,6 +32,16 @@ it('resolveConnections throws RomeConfigurationException when db_connections is 
     $method->invoke($command);
 })->throws(RomeConfigurationException::class, 'rome.db_connections is empty');
 
+it('resolveConnections maps "default" to database.default connection name', function () {
+    config()->set('database.default', 'pgsql');
+    config()->set('rome.db_connections', ['default', 'analytics']);
+
+    $command = new RegenerateViewCommand;
+    $method = new ReflectionMethod($command, 'resolveConnections');
+
+    expect($method->invoke($command))->toBe(['pgsql', 'analytics']);
+});
+
 it('resolveTenants throws RomeConfigurationException when tenant_model is not configured', function () {
     config()->set('rome.tenant_model', null);
 
@@ -52,6 +62,15 @@ it('detects a materialized view from its SQL', function () {
         ->and($method->invoke($command, 'CREATE OR REPLACE MATERIALIZED VIEW reports AS SELECT 1'))->toBeTrue()
         ->and($method->invoke($command, 'CREATE OR REPLACE VIEW reports AS SELECT 1'))->toBeFalse()
         ->and($method->invoke($command, "-- materialized comment\nCREATE VIEW reports AS SELECT 1"))->toBeFalse();
+});
+
+it('extracts the target view name from SQL definition', function () {
+    $command = new RegenerateViewCommand;
+    $method = new ReflectionMethod($command, 'extractViewNameFromSql');
+
+    expect($method->invoke($command, 'CREATE OR REPLACE VIEW sales_view AS SELECT 1'))->toBe('sales_view')
+        ->and($method->invoke($command, 'CREATE MATERIALIZED VIEW analytics.daily_rollup AS SELECT 1'))->toBe('analytics.daily_rollup')
+        ->and($method->invoke($command, 'SELECT 1'))->toBeNull();
 });
 
 // ---------------------------------------------------------------------------

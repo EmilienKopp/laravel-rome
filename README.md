@@ -38,7 +38,7 @@ return [
 
     // Connections used for view operations. Must be configured.
     // Views are run against each connection in order.
-    'db_connections' => ['default'],  // e.g. ['default'] or ['analytics', 'reporting']
+    'db_connections' => ['pgsql'],  // e.g. ['pgsql'] or ['analytics', 'reporting']
 
     // --- Multi-tenancy (optional) ---
     'tenant_model'         => null,     // e.g. App\Models\Tenant::class

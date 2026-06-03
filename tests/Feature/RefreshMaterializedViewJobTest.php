@@ -11,6 +11,21 @@ it('throws RomeConfigurationException when no connection is configured and none 
     (new RefreshMaterializedView(viewName: 'my_view'))->handle();
 })->throws(RomeConfigurationException::class, 'No connection specified');
 
+it('resolves "default" to database.default connection', function () {
+    config()->set('database.default', 'testing');
+    config()->set('rome.db_connections', ['default']);
+
+    $mockLock = Mockery::mock();
+    $mockLock->shouldReceive('get')->once()->andReturn(false);
+
+    Cache::shouldReceive('lock')
+        ->once()
+        ->with('refresh_mat_view__my_view', 300)
+        ->andReturn($mockLock);
+
+    (new RefreshMaterializedView(viewName: 'my_view'))->handle();
+});
+
 it('skips refresh and logs when the lock is already held by another process', function () {
     $mockLock = Mockery::mock();
     $mockLock->shouldReceive('get')->once()->andReturn(false);
