@@ -26,26 +26,30 @@ class ViewDialect
 
     public function dropView(string $viewName): string
     {
+        $identifier = $this->quoteIdentifier($viewName);
+
         return match ($this->driver) {
-            'pgsql' => "DROP VIEW IF EXISTS {$viewName} CASCADE",
-            default => "DROP VIEW IF EXISTS {$viewName}",
+            'pgsql' => "DROP VIEW IF EXISTS {$identifier} CASCADE",
+            default => "DROP VIEW IF EXISTS {$identifier}",
         };
     }
 
     public function dropMaterializedView(string $viewName): string
     {
         $this->assertMaterializedViewSupport();
+        $identifier = $this->quoteIdentifier($viewName);
 
-        return "DROP MATERIALIZED VIEW IF EXISTS {$viewName} CASCADE";
+        return "DROP MATERIALIZED VIEW IF EXISTS {$identifier} CASCADE";
     }
 
     public function refreshMaterializedView(string $viewName, bool $concurrent = false): string
     {
         $this->assertMaterializedViewSupport();
+        $identifier = $this->quoteIdentifier($viewName);
 
         return $concurrent
-            ? "REFRESH MATERIALIZED VIEW CONCURRENTLY {$viewName}"
-            : "REFRESH MATERIALIZED VIEW {$viewName}";
+            ? "REFRESH MATERIALIZED VIEW CONCURRENTLY {$identifier}"
+            : "REFRESH MATERIALIZED VIEW {$identifier}";
     }
 
     public function uniqueIndexSql(): string
@@ -64,5 +68,19 @@ class ViewDialect
                 "Materialized views are not supported by driver '{$this->driver}'."
             );
         }
+    }
+
+    private function quoteIdentifier(string $identifier): string
+    {
+        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/', $identifier)) {
+            throw new UnsupportedDriverException("Invalid view identifier '{$identifier}'.");
+        }
+
+        $parts = explode('.', $identifier);
+
+        return match ($this->driver) {
+            'mysql' => implode('.', array_map(static fn (string $part): string => "`{$part}`", $parts)),
+            default => implode('.', array_map(static fn (string $part): string => "\"{$part}\"", $parts)),
+        };
     }
 }

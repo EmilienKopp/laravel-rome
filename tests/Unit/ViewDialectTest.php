@@ -18,19 +18,19 @@ it('supports materialized views only for pgsql', function (string $driver, bool 
 describe('dropView', function () {
     it('adds CASCADE for pgsql', function () {
         expect((new ViewDialect('pgsql'))->dropView('reports'))
-            ->toBe('DROP VIEW IF EXISTS reports CASCADE');
+            ->toBe('DROP VIEW IF EXISTS "reports" CASCADE');
     });
 
     it('generates simple DROP for other drivers', function () {
         expect((new ViewDialect('mysql'))->dropView('reports'))
-            ->toBe('DROP VIEW IF EXISTS reports');
+            ->toBe('DROP VIEW IF EXISTS `reports`');
     });
 });
 
 describe('dropMaterializedView', function () {
     it('generates DROP MATERIALIZED VIEW with CASCADE for pgsql', function () {
         expect((new ViewDialect('pgsql'))->dropMaterializedView('reports'))
-            ->toBe('DROP MATERIALIZED VIEW IF EXISTS reports CASCADE');
+            ->toBe('DROP MATERIALIZED VIEW IF EXISTS "reports" CASCADE');
     });
 
     it('throws UnsupportedDriverException for non-pgsql', function () {
@@ -41,18 +41,22 @@ describe('dropMaterializedView', function () {
 describe('refreshMaterializedView', function () {
     it('generates blocking REFRESH for pgsql', function () {
         expect((new ViewDialect('pgsql'))->refreshMaterializedView('reports'))
-            ->toBe('REFRESH MATERIALIZED VIEW reports');
+            ->toBe('REFRESH MATERIALIZED VIEW "reports"');
     });
 
     it('generates CONCURRENT REFRESH when requested', function () {
         expect((new ViewDialect('pgsql'))->refreshMaterializedView('reports', concurrent: true))
-            ->toBe('REFRESH MATERIALIZED VIEW CONCURRENTLY reports');
+            ->toBe('REFRESH MATERIALIZED VIEW CONCURRENTLY "reports"');
     });
 
     it('throws UnsupportedDriverException for non-pgsql', function () {
         (new ViewDialect('sqlite'))->refreshMaterializedView('reports');
     })->throws(UnsupportedDriverException::class);
 });
+
+it('throws UnsupportedDriverException for invalid identifiers', function () {
+    (new ViewDialect('pgsql'))->dropView('reports;DROP TABLE users');
+})->throws(UnsupportedDriverException::class, 'Invalid view identifier');
 
 describe('uniqueIndexSql', function () {
     it('queries pg_indexes for pgsql', function () {

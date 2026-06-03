@@ -25,10 +25,10 @@ return [
     | The database connections used for view operations (regeneration, refresh).
     | Views will be run against each connection in order.
     |
-    | Example: ['default'] or ['analytics', 'reporting']
+    | Example: ['pgsql'] or ['analytics', 'reporting']
     |
     */
-    'db_connections' => ['default'],
+    'db_connections' => [env('DB_CONNECTION', 'mysql')],
 
     /*
     |--------------------------------------------------------------------------
