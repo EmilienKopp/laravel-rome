@@ -92,6 +92,16 @@ abstract class ReadOnlyModel extends Model
     }
 
     /**
+     * Hydrate an instance of the proxied model with attributes from this read-only model
+     * without a database query.
+     * Alias for underlying()
+     */
+    public function proxy(): Model
+    {
+        return $this->underlying();
+    }
+
+    /**
      * Get the proxied model class name.
      *
      * @throws ProxiedModelException
