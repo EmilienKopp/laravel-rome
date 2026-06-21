@@ -66,18 +66,23 @@ However, we provide a fluent way to proxy the underlying writable model for upda
 
 ### Enabling proxy operations
 
-Proxy operations (`update`, `underlying`, `proxy`) can be dangerous if you are not careful, so they are **disabled by default**. Two conditions must both be true or every proxy call throws a `ProxiedModelException`:
+Proxy operations (`update`, `underlying`, `proxy`) are **off by default**.
 
-1. **Global switch** — set `rome.proxy_enabled => true` in `config/rome.php`. Read the warning comment there before enabling.
-2. **Per-model opt-in** — set `$proxyTo` on your model to the writable model class that owns the underlying table. Leaving it `null` keeps the model's proxy disabled even when the global switch is on.
+To use them, you should:
+
+1. **Turn on the global switch** — set `rome.proxy_enabled => true` in `config/rome.php`
+2. **define `protected $proxyTo`** — the writable Eloquent model to proxy to.
+
+Calls to proxy operations throw a `ProxiedModelException` if either of these conditions is not met.
 
 ### Setup
 
-| Property   | Type                 | Purpose                                                                                                                                                                         |
-| ---------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `$table`   | `string`             | The view name in the database                                                                                                                                                   |
-| `$proxyTo` | `class-string\|null` | Writable model that owns the underlying table. Required to enable proxy operations                                                                                              |
-| `$exclude` | `string[]`           | Columns stripped when hydrating via `proxy()` / `underlying(false)`. See [computed column warning](#danger-computed-columns-that-share-a-name-with-the-underlying-table-column) |
+| Property      | Type                     | Purpose                                                                                                                                                                         |
+| ------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$table`      | `string`                 | The view name in the database                                                                                                                                                   |
+| `$proxyTo`    | `class-string\|null`     | Writable model that owns the underlying table. Required to enable proxy operations                                                                                              |
+| `$exclude`    | `string[]`               | Columns stripped when hydrating via `proxy()` / `underlying(false)`. See [computed column warning](#danger-computed-columns-that-share-a-name-with-the-underlying-table-column) |
+| `$primaryKey` | `string` (default: `id`) | The primary key column name. Override if your view's primary key is different.                                                                                |
 
 ```php
 use Splitstack\Rome\Models\ReadOnlyModel;
@@ -97,7 +102,7 @@ class OrderSummaryView extends ReadOnlyModel
 **Primary key:** `ReadOnlyModel` declares a non-incrementing primary key named `id` but makes no assumption about key type. Set `$keyType`, `$incrementing`, and any `$casts` on your model to match your actual key type. The model set in `$proxyTo` must use the same primary key name and type, since all proxy lookups use `$this->getKey()` to locate the record in the proxied table.
 **Make sure to override `protected $primaryKey` if your view's primary key is not `id`.**
 
-### Proxied writes
+### Proxy operations
 
 #### `update(array $attributes)`
 
@@ -109,6 +114,10 @@ $summary->update(['status' => 'shipped']); // returns OrderSummaryView
 ```
 
 Throws if no matching record exists in the proxied table.
+
+#### `save()` and `delete()`
+
+They **always throw** regardless of proxy configuration. This is a safety measure to prevent accidental overwrites through the view model. Use `update()` for updates, and call `underlying()->delete()` for deletions.
 
 ### Accessing the underlying model
 

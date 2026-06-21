@@ -11,6 +11,9 @@ use Splitstack\Rome\Exceptions\ReadOnlyModelException;
  * Prevents direct writes, but allows updates via a proxied model class.
  *
  * @important for the proxying to work, the proxied model must use the same primary key name and type
+ * @important the `proxy_enabled` config must be true for proxying to work, otherwise all proxy calls throw
+ *
+ * @mixin Model
  */
 abstract class ReadOnlyModel extends Model
 {
@@ -34,7 +37,9 @@ abstract class ReadOnlyModel extends Model
     protected static array $exclude = [];
 
     /**
-     * @throws ReadOnlyModelException
+     * @throws ReadOnlyModelException always, because this model is read-only
+     *
+     * @deprecated delete() is unavailable from Read Only Models
      */
     public function delete()
     {
@@ -45,7 +50,7 @@ abstract class ReadOnlyModel extends Model
      * @param  array<string, mixed>  $attributes
      * @return static|null
      *
-     * @throws ProxiedModelException
+     * @throws ProxiedModelException if proxying is disabled or misconfigured
      */
     public function update(array $attributes = [], array $options = [])
     {
@@ -64,7 +69,9 @@ abstract class ReadOnlyModel extends Model
     }
 
     /**
-     * @throws ReadOnlyModelException
+     * @throws ReadOnlyModelException always, because this model is read-only
+     *
+     * @deprecated save() is unavailable from Read Only Models
      */
     public function save(array $options = [])
     {
@@ -77,7 +84,7 @@ abstract class ReadOnlyModel extends Model
      * With forceFetch: false hydrates in-memory from $fillable — no query, but computed
      * column values come from the view. Audit $exclude before using this path.
      *
-     * @throws ProxiedModelException
+     * @throws ProxiedModelException if proxying is disabled or misconfigured
      */
     public function underlying(bool $forceFetch = true): ?Model
     {
@@ -102,7 +109,7 @@ abstract class ReadOnlyModel extends Model
      * Hydrates a proxied model instance in-memory from the view's attributes.
      * Alias for underlying(forceFetch: false).
      *
-     * @throws ProxiedModelException
+     * @throws ProxiedModelException if proxying is disabled or misconfigured
      */
     public function proxy(): Model
     {
@@ -115,7 +122,7 @@ abstract class ReadOnlyModel extends Model
     }
 
     /**
-     * @throws ProxiedModelException
+     * @throws ProxiedModelException if proxying is disabled or misconfigured
      */
     protected static function getProxiedModelClass(): string
     {
@@ -131,7 +138,7 @@ abstract class ReadOnlyModel extends Model
     }
 
     /**
-     * @throws ProxiedModelException
+     * @throws ProxiedModelException if proxying is disabled or misconfigured
      */
     private function assertProxyEnabled(): void
     {
