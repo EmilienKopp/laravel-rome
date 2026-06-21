@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="art/logo.png" width="120" alt="Laravel Rome">
+</p>
+
 # Laravel Rome
 
 ![Tests](https://img.shields.io/github/actions/workflow/status/emilienkopp/laravel-rome/tests.yml?label=tests)
@@ -53,66 +57,6 @@ return [
     // Path is relative to app_path(); namespace is derived automatically.
     'readonly_model_path' => 'Models/Views',
 ];
-```
-
-## Scaffolding a view
-
-```bash
-php artisan make:dbview order_summary
-```
-
-The command prompts for the view name if omitted, then offers an interactive picklist of Eloquent models in your `app/Models` directory (and any paths listed in `rome.model_scan_paths`). Selecting a model seeds the `SELECT` column list and the view model's `$fillable` from that model's `$fillable`. Choose `(none)` to start with a blank template.
-
-You can bypass the prompt in scripts:
-
-```bash
-php artisan make:dbview order_summary --model="App\Models\Order"
-```
-
-This creates three files:
-
-| File                                                            | Purpose                           |
-| --------------------------------------------------------------- | --------------------------------- |
-| `database/views/order_summary.sql`                              | SQL definition — edit this        |
-| `database/migrations/{timestamp}_create_order_summary_view.php` | Runs the SQL on migrate           |
-| `app/Models/Views/OrderSummaryView.php`                         | Eloquent model backed by the view |
-
-The output path for view models is controlled by `rome.readonly_model_path`.
-
-## Regenerating views
-
-Re-runs all `.sql` files in `db_views_path` against each configured connection, handling drop-and-recreate and view dependencies.
-
-If some views depend on others existing first, declare them in `priority_views` in the config — they are created in the listed order before all remaining views (which are sorted alphabetically):
-
-```php
-'priority_views' => ['base_metrics', 'aggregated_totals'],
-```
-
-```bash
-# all views, all configured connections
-php artisan dbview:regen
-
-# single view
-php artisan dbview:regen order_summary
-
-# skip materialized views
-php artisan dbview:regen --no-materialized
-
-# preview which views would run without executing any SQL
-php artisan dbview:regen --dry-run
-```
-
-### Multi-tenant mode
-
-When `tenant_model` is configured, `--multi-tenant` iterates over all active tenants using `eachCurrent` (compatible with [spatie/laravel-multitenancy](https://github.com/spatie/laravel-multitenancy)):
-
-```bash
-# all active tenants
-php artisan dbview:regen --multi-tenant
-
-# specific tenants
-php artisan dbview:regen --tenants=abc123,def456
 ```
 
 ## ReadOnlyModel
@@ -218,6 +162,66 @@ $order = $summary->proxy(); // no query; $fillable attributes hydrated from the 
 > `$exclude` has no effect on `underlying(forceFetch: true)`, which always reads from the database. Use `forceFetch: true` (the default) whenever you intend to write back through the proxied model. Only use `proxy()` or `underlying(false)` when you explicitly do not need the stored values and have audited both your column aliases and your `$exclude` list.
 
 ---
+
+## Scaffolding a view
+
+```bash
+php artisan make:dbview order_summary
+```
+
+The command prompts for the view name if omitted, then offers an interactive picklist of Eloquent models in your `app/Models` directory (and any paths listed in `rome.model_scan_paths`). Selecting a model seeds the `SELECT` column list and the view model's `$fillable` from that model's `$fillable`. Choose `(none)` to start with a blank template.
+
+You can bypass the prompt in scripts:
+
+```bash
+php artisan make:dbview order_summary --model="App\Models\Order"
+```
+
+This creates three files:
+
+| File                                                            | Purpose                           |
+| --------------------------------------------------------------- | --------------------------------- |
+| `database/views/order_summary.sql`                              | SQL definition — edit this        |
+| `database/migrations/{timestamp}_create_order_summary_view.php` | Runs the SQL on migrate           |
+| `app/Models/Views/OrderSummaryView.php`                         | Eloquent model backed by the view |
+
+The output path for view models is controlled by `rome.readonly_model_path`.
+
+## Regenerating views
+
+Re-runs all `.sql` files in `db_views_path` against each configured connection, handling drop-and-recreate and view dependencies.
+
+If some views depend on others existing first, declare them in `priority_views` in the config — they are created in the listed order before all remaining views (which are sorted alphabetically):
+
+```php
+'priority_views' => ['base_metrics', 'aggregated_totals'],
+```
+
+```bash
+# all views, all configured connections
+php artisan dbview:regen
+
+# single view
+php artisan dbview:regen order_summary
+
+# skip materialized views
+php artisan dbview:regen --no-materialized
+
+# preview which views would run without executing any SQL
+php artisan dbview:regen --dry-run
+```
+
+### Multi-tenant mode
+
+When `tenant_model` is configured, `--multi-tenant` iterates over all active tenants using `eachCurrent` (compatible with [spatie/laravel-multitenancy](https://github.com/spatie/laravel-multitenancy)):
+
+```bash
+# all active tenants
+php artisan dbview:regen --multi-tenant
+
+# specific tenants
+php artisan dbview:regen --tenants=abc123,def456
+```
 
 ## Refreshing materialized views (PostgreSQL only)
 
