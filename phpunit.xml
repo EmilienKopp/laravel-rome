@@ -11,7 +11,25 @@
         <testsuite name="Feature">
             <directory>./tests/Feature</directory>
         </testsuite>
+        <testsuite name="Integration:Postgres">
+            <directory>./tests/Integration/Postgres</directory>
+        </testsuite>
+        <testsuite name="Integration:Mysql">
+            <directory>./tests/Integration/Mysql</directory>
+        </testsuite>
     </testsuites>
+    <php>
+        <env name="PGSQL_HOST"     value="127.0.0.1"/>
+        <env name="PGSQL_PORT"     value="54320"/>
+        <env name="PGSQL_DB"       value="rome_test"/>
+        <env name="PGSQL_USER"     value="rome_test"/>
+        <env name="PGSQL_PASSWORD" value="secret"/>
+        <env name="MYSQL_HOST"     value="127.0.0.1"/>
+        <env name="MYSQL_PORT"     value="13306"/>
+        <env name="MYSQL_DB"       value="rome_test"/>
+        <env name="MYSQL_USER"     value="rome_test"/>
+        <env name="MYSQL_PASSWORD" value="secret"/>
+    </php>
     <source>
         <include>
             <directory suffix=".php">./src</directory>

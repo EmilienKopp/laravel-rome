@@ -32,10 +32,18 @@
   "autoload-dev": {
     "psr-4": {
       "Splitstack\\Rome\\Tests\\": "tests/"
-    }
+    },
+    "files": [
+      "tests/Integration/Shared/ReadOnlyModelBehaviourTest.php",
+      "tests/Integration/Shared/ProxyBehaviourTest.php",
+      "tests/Integration/Shared/ExcludeBehaviourTest.php"
+    ]
   },
   "scripts": {
-    "test": "vendor/bin/pest",
+    "test": "vendor/bin/pest --testsuite=Unit,Feature",
+    "test:integration": "vendor/bin/pest --testsuite=Integration:Postgres,Integration:Mysql",
+    "test:postgres": "vendor/bin/pest --testsuite=Integration:Postgres",
+    "test:mysql": "vendor/bin/pest --testsuite=Integration:Mysql",
     "lint": "vendor/bin/pint"
   },
   "extra": {
