@@ -9,9 +9,9 @@
 ![Laravel Version](https://img.shields.io/badge/laravel-^11.0-orange.svg?style=flat-square)
 [![Total Downloads](https://img.shields.io/packagist/dt/splitstack/laravel-rome.svg?style=flat-square)](https://packagist.org/packages/splitstack/laravel-rome)
 
-Make Database Views first-class citizens in your Laravel app.
+Make database views first-class citizens in your Laravel app.
 
-A Laravel package for managing database views: scaffolding, regeneration, and materialized view refresh. Supports PostgreSQL and MySQL, with optional multi-tenant iteration.
+Laravel Rome takes the friction out of working with database views: query them through proper Eloquent models, but also scaffold them or refresh materialized ones. Works with PostgreSQL and MySQL, with optional multi-tenant support.
 
 ## Requirements
 
@@ -61,11 +61,12 @@ return [
 
 ## ReadOnlyModel
 
-A base Eloquent model for views. Reads behave exactly like any Eloquent model. Direct writes (`save`, `delete`) always throw. Write operations that need to mutate data are proxied through a separate writable model that maps to the underlying table.
+`ReadOnlyModel` is the Eloquent model you point at a database view. Reading from it works exactly like any other model. Writing directly with `save()` or `delete()` is intentionally blocked.
+However, we provide a fluent way to proxy the underlying writable model for updates, and to access the underlying model instance for event dispatch or method calls.
 
 ### Enabling proxy operations
 
-Proxy operations (`update`, `underlying`, `proxy`) are **disabled by default**. Two conditions must both be true or every proxy call throws a `ProxiedModelException`:
+Proxy operations (`update`, `underlying`, `proxy`) can be dangerous if you are not careful, so they are **disabled by default**. Two conditions must both be true or every proxy call throws a `ProxiedModelException`:
 
 1. **Global switch** — set `rome.proxy_enabled => true` in `config/rome.php`. Read the warning comment there before enabling.
 2. **Per-model opt-in** — set `$proxyTo` on your model to the writable model class that owns the underlying table. Leaving it `null` keeps the model's proxy disabled even when the global switch is on.
@@ -85,6 +86,8 @@ class OrderSummaryView extends ReadOnlyModel
 {
     protected $table = 'order_summary_view';
 
+    protected $primaryKey = 'id'; // defaults to 'id' if omitted; override if your view's primary key is different
+
     protected static $proxyTo = Order::class;
 
     protected static array $exclude = ['total_price'];
@@ -92,12 +95,13 @@ class OrderSummaryView extends ReadOnlyModel
 ```
 
 **Primary key:** `ReadOnlyModel` declares a non-incrementing primary key named `id` but makes no assumption about key type. Set `$keyType`, `$incrementing`, and any `$casts` on your model to match your actual key type. The model set in `$proxyTo` must use the same primary key name and type, since all proxy lookups use `$this->getKey()` to locate the record in the proxied table.
+**Make sure to override `protected $primaryKey` if your view's primary key is not `id`.**
 
 ### Proxied writes
 
 #### `update(array $attributes)`
 
-Finds the matching record in the proxied model by primary key, calls `update()` on it, then re-fetches and returns the view record so computed columns reflect the change.
+Looks up the matching record in the proxied model by primary key, updates it, then re-fetches and returns the view record so your computed columns are up to date.
 
 ```php
 $summary = OrderSummaryView::find($id);
@@ -119,7 +123,7 @@ $order = $summary->underlying(); // hits the database; all attributes present
 Pass `forceFetch: false` to hydrate in-memory from the view's attributes intersected with the proxied model's `$fillable`. No database query is made, but attributes not in `$fillable` are absent, and **computed column values are taken from the view** — see the warning below.
 
 ```php
-$order = $summary->underlying(forceFetch: false); // no query; $fillable attributes only
+$order = $summary->underlying(forceFetch: false); // no query; $fillable attributes only, faster but riskier
 ```
 
 #### `proxy()`
