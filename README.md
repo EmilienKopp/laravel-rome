@@ -94,19 +94,12 @@ Proxy operations (`update`, `underlying`, `proxy`) are **off by default**.
 
 To use them, you should:
 
-1. **Turn on the global switch** — set `rome.proxy_enabled => true` in `config/rome.php`
+1. **Turn on the global switch** — set `rome.proxy_enabled => true` in `config/rome.php` or, if you don't need to publish, set the environment variable `ROME_PROXY_ENABLED=true`.
 2. **define `protected $proxyTo`** — the writable Eloquent model to proxy to.
 
 Calls to proxy operations throw a `ProxiedModelException` if either of these conditions is not met.
 
-### Setup
-
-| Property      | Type                     | Purpose                                                                                                                                                                         |
-| ------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `$table`      | `string`                 | The view name in the database                                                                                                                                                   |
-| `$proxyTo`    | `class-string\|null`     | Writable model that owns the underlying table. Required to enable proxy operations                                                                                              |
-| `$exclude`    | `string[]`               | Columns stripped when hydrating via `proxy()` / `underlying(false)`. See [computed column warning](#danger-computed-columns-that-share-a-name-with-the-underlying-table-column) |
-| `$primaryKey` | `string` (default: `id`) | The primary key column name. Override if your view's primary key is different.                                                                                |
+### Create your first read-only view model
 
 ```php
 use Splitstack\Rome\Models\ReadOnlyModel;
@@ -123,8 +116,20 @@ class OrderSummaryView extends ReadOnlyModel
 }
 ```
 
-**Primary key:** `ReadOnlyModel` declares a non-incrementing primary key named `id` but makes no assumption about key type. Set `$keyType`, `$incrementing`, and any `$casts` on your model to match your actual key type. The model set in `$proxyTo` must use the same primary key name and type, since all proxy lookups use `$this->getKey()` to locate the record in the proxied table.
-**Make sure to override `protected $primaryKey` if your view's primary key is not `id`.**
+| Property      | Type                     | Purpose                                                                                                                                                                         |
+| ------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$table`      | `string`                 | The view name in the database                                                                                                                                                   |
+| `$proxyTo`    | `class-string\|null`     | Writable model that owns the underlying table. Required to enable proxy operations                                                                                              |
+| `$exclude`    | `string[]`               | Columns stripped when hydrating via `proxy()` / `underlying(false)`. See [computed column warning](#danger-computed-columns-that-share-a-name-with-the-underlying-table-column) |
+| `$primaryKey` | `string` (default: `id`) | The primary key column name. Override if your view's primary key is different.                                                                                |
+
+#### Primary Key configuration
+
+`ReadOnlyModel` declares a non-incrementing primary key named `id` but makes no assumption about key type. Set `$keyType`, `$incrementing`, and any `$casts` on your model to match your actual key type. The model set in `$proxyTo` must use the same primary key name and type, since all proxy lookups use `$this->getKey()` to locate the record in the proxied table.
+
+**Make sure to override `protected $primaryKey` if your view's "primary key" is not `id`.**
+
+⚠　**Warning** - if your view does not have a unique column or set of columns that can serve as a primary key, you will not be able to use proxy operations. You can still use the model for querying and read operations, but updates through the proxy are not possible without a reliable way to identify the underlying record.
 
 ### Proxy operations
 
@@ -174,6 +179,9 @@ $order = $summary->proxy(); // no query; $fillable attributes hydrated from the 
 > If your view computes a value under the same column name that exists in the proxied model's table, `proxy()` and `underlying(forceFetch: false)` will silently hydrate the proxied instance with the **computed value from the view**, not the raw stored value. Calling `save()` or `update()` on that instance can then write the computed value back to the table, corrupting data.
 >
 > Example: a view computes `total_price` as `quantity * unit_price`. The `orders` table also has a stored `total_price` column. Calling `proxy()` populates `$order->total_price` with the view-computed figure. If that instance is then updated, the computed figure overwrites the stored one.
+>
+> We provide a `php artisan rome:check` command that scans your view SQL for computed columns that share names with the proxied model's table columns, and reports any dangerous collisions it finds.
+> Be aware that this command is not perfect — it looks for simple patterns in the SQL and may miss complex cases or produce false positives. Always review the view SQL and your `$exclude` list carefully to ensure all computed columns are accounted for.
 >
 > **The safest fix is to rename computed columns in the view SQL** so they cannot collide:
 >

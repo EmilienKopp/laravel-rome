@@ -97,6 +97,6 @@ return [
     | which is the safe starting point.
     |
     */
-    'proxy_enabled' => false,
+    'proxy_enabled' => env('ROME_PROXY_ENABLED', false),
 
 ];

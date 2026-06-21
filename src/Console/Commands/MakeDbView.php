@@ -55,8 +55,15 @@ class MakeDbView extends GeneratorCommand
 
         $this->files->ensureDirectoryExists(database_path('views'));
 
+        // Create the migration first so we can extract its timestamp and stamp the SQL file to match.
+        // This ensures each SQL snapshot is versioned alongside the migration that uses it,
+        // so running migrations from scratch always picks up the correct SQL at each step.
+        $migrationPath = $this->createMigration($migrationName);
+        $timestamp = $this->extractMigrationTimestamp($migrationPath);
+        $sqlFileName = $timestamp.'_'.$name.'.sql';
+
+        $this->updateMigrationSqlReference($migrationPath, $sqlFileName);
         $this->createSqlFile($sqlFileName);
-        $this->createMigration($migrationName, $sqlFileName);
 
         // Use GeneratorCommand machinery for the model file
         $qualifiedClass = $this->qualifyClass($modelName);
@@ -203,16 +210,31 @@ class MakeDbView extends GeneratorCommand
         $this->files->put(database_path("views/{$fileName}"), $sqlContent);
     }
 
-    private function createMigration(string $migrationName, string $sqlFileName): void
+    private function createMigration(string $migrationName): string
     {
-        $viewName = $this->dbViewName;
-
         $path = $this->laravel['migration.creator']->create(
             $migrationName,
             $this->laravel->databasePath('migrations')
         );
 
-        $this->files->put($path, <<<PHP
+        $this->migrationFilename = 'database/migrations/'.basename($path);
+
+        return $path;
+    }
+
+    private function extractMigrationTimestamp(string $migrationPath): string
+    {
+        // Migration filenames are: 2024_01_15_123456_create_foo_view.php
+        preg_match('/^(\d{4}_\d{2}_\d{2}_\d{6})_/', basename($migrationPath), $m);
+
+        return $m[1] ?? date('Y_m_d_His');
+    }
+
+    private function updateMigrationSqlReference(string $migrationPath, string $sqlFileName): void
+    {
+        $viewName = $this->dbViewName;
+
+        $this->files->put($migrationPath, <<<PHP
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -231,7 +253,5 @@ return new class extends Migration
     }
 };
 PHP);
-
-        $this->migrationFilename = 'database/migrations/'.basename($path);
     }
 }
