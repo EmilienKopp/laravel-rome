@@ -1,0 +1,23 @@
+parametersSchema:
+    rome: structure([
+        dbViewsPath: schema(string(), default(''))
+    ])
+
+services:
+    -
+        class: Splitstack\Rome\PHPStan\Rules\NoDirectWriteOnReadOnlyModelRule
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: Splitstack\Rome\PHPStan\Rules\ProxiedWriteAfterProxyCallRule
+        tags:
+            - phpstan.rules.rule
+
+    -
+        class: Splitstack\Rome\PHPStan\Rules\ViewDefinitionsMightCollide
+        arguments:
+            rootDir: %rootDir%
+            dbViewsPath: %rome.dbViewsPath%
+        tags:
+            - phpstan.rules.rule

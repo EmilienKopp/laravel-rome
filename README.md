@@ -25,10 +25,34 @@ Laravel Rome takes the friction out of working with database views: query them t
 composer require splitstack/laravel-rome
 ```
 
-Publish the config:
+## Publishing
+
+Publish the Laravel config:
 
 ```bash
 php artisan vendor:publish --tag=rome-config
+```
+
+Publish the PHPStan extension (optional — see [PHPStan rules](#phpstan-rules)):
+
+```bash
+php artisan vendor:publish --tag=rome-phpstan
+```
+
+This copies `extension.neon` to `phpstan-rome.neon` at your project root, where you can customise it (e.g. set a non-standard `db_views_path`). Then include it in your `phpstan.neon`:
+
+```neon
+# phpstan.neon
+includes:
+    - phpstan-rome.neon
+```
+
+If you don't need to customise anything, you can skip publishing and include the extension directly from the vendor path:
+
+```neon
+# phpstan.neon
+includes:
+    - vendor/splitstack/laravel-rome/extension.neon
 ```
 
 ## Configuration
@@ -332,6 +356,46 @@ $dialect->uniqueIndexSql();                      // pg_indexes / information_sch
 | Materialized views    | ✓          | — (skipped with warning) |
 | `DROP VIEW … CASCADE` | ✓          | ✓ (omitted)              |
 | Unique index check    | ✓          | ✓                        |
+
+## PHPStan rules
+
+Laravel Rome ships two PHPStan rules that catch misuse of `ReadOnlyModel` at static-analysis time — before a test or request ever hits the line.
+
+### Setup
+
+Require PHPStan if you haven't already:
+
+```bash
+composer require --dev phpstan/phpstan
+```
+
+Then include the extension — either the published file or directly from vendor (see [Publishing](#publishing)).
+
+### Rules
+
+#### `NoDirectWriteOnReadOnlyModelRule`
+
+Flags any call to `save()` or `delete()` on a `ReadOnlyModel` subclass. Both methods always throw `ReadOnlyModelException` at runtime; this surfaces the mistake at build time instead.
+
+```php
+$summary = OrderSummaryView::find($id);
+$summary->save(); // ❌ PHPStan: Cannot call save() on OrderSummaryView: this is a ReadOnlyModel.
+```
+
+#### `ProxiedWriteAfterProxyCallRule`
+
+Flags `save()` or `delete()` chained directly onto `proxy()` or `underlying(false)`. Both return an in-memory instance hydrated from the view's attributes, which may contain computed column values that don't exist in the backing table. Writing through such an instance can silently corrupt data.
+
+```php
+$summary->proxy()->save();                       // ❌ PHPStan: Do not call save() on the result of proxy()…
+$summary->underlying(false)->save();             // ❌ PHPStan: Do not call save() on the result of underlying(false)…
+$summary->underlying(forceFetch: false)->save(); // ❌ same
+
+$summary->underlying(true)->save();  // ✓ DB-fetched — safe
+$summary->update(['status' => 'x']); // ✓ correct write path
+```
+
+> The rule catches chained calls only. Assigning the result to a variable first (`$p = $view->proxy(); $p->save()`) is not currently detected.
 
 ## License
 

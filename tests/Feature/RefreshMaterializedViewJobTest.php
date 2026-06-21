@@ -53,16 +53,16 @@ it('calls all onFailure callbacks when the job permanently fails', function () {
         viewName: 'my_view',
         dbConnection: 'testing',
         onFailure: [
-            function (\Throwable $e) use (&$results) {
+            function (Throwable $e) use (&$results) {
                 $results[] = 'first: '.$e->getMessage();
             },
-            function (\Throwable $e, RefreshMaterializedView $job) use (&$results) {
+            function (Throwable $e, RefreshMaterializedView $job) use (&$results) {
                 $results[] = 'second: '.$job->viewName;
             },
         ],
     );
 
-    $job->failed(new \RuntimeException('disk full'));
+    $job->failed(new RuntimeException('disk full'));
 
     expect($results)->toBe(['first: disk full', 'second: my_view']);
 });

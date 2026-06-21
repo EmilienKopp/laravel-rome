@@ -14,25 +14,25 @@ abstract class IntegrationTestCase extends TestCase
         config()->set('rome.proxy_enabled', true);
 
         config()->set('database.connections.pgsql_test', [
-            'driver'   => 'pgsql',
-            'host'     => env('PGSQL_HOST', '127.0.0.1'),
-            'port'     => env('PGSQL_PORT', '5432'),
+            'driver' => 'pgsql',
+            'host' => env('PGSQL_HOST', '127.0.0.1'),
+            'port' => env('PGSQL_PORT', '5432'),
             'database' => env('PGSQL_DB', 'rome_test'),
             'username' => env('PGSQL_USER', 'rome_test'),
             'password' => env('PGSQL_PASSWORD', 'secret'),
-            'charset'  => 'utf8',
-            'schema'   => 'public',
+            'charset' => 'utf8',
+            'schema' => 'public',
         ]);
 
         config()->set('database.connections.mysql_test', [
-            'driver'     => 'mysql',
-            'host'       => env('MYSQL_HOST', '127.0.0.1'),
-            'port'       => env('MYSQL_PORT', '3306'),
-            'database'   => env('MYSQL_DB', 'rome_test'),
-            'username'   => env('MYSQL_USER', 'rome_test'),
-            'password'   => env('MYSQL_PASSWORD', 'secret'),
-            'charset'    => 'utf8mb4',
-            'collation'  => 'utf8mb4_unicode_ci',
+            'driver' => 'mysql',
+            'host' => env('MYSQL_HOST', '127.0.0.1'),
+            'port' => env('MYSQL_PORT', '3306'),
+            'database' => env('MYSQL_DB', 'rome_test'),
+            'username' => env('MYSQL_USER', 'rome_test'),
+            'password' => env('MYSQL_PASSWORD', 'secret'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
         ]);
     }
 
@@ -50,7 +50,7 @@ abstract class IntegrationTestCase extends TestCase
             $this->markTestSkipped(
                 "Integration tests skipped: cannot connect to '{$connection}'. "
                 ."Start containers with 'docker compose up -d' and set PGSQL_*/MYSQL_* env vars. "
-                ."Original error: ".$e->getMessage()
+                .'Original error: '.$e->getMessage()
             );
         }
     }

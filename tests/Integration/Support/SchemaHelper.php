@@ -64,8 +64,8 @@ class SchemaHelper
     public function seedItem(int $id, string $name, string $status = 'active'): void
     {
         DB::connection($this->connection)->table('rome_integration_items')->insert([
-            'id'     => $id,
-            'name'   => $name,
+            'id' => $id,
+            'name' => $name,
             'status' => $status,
         ]);
     }

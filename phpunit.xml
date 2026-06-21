@@ -17,6 +17,9 @@
         <testsuite name="Integration:Mysql">
             <directory>./tests/Integration/Mysql</directory>
         </testsuite>
+        <testsuite name="PHPStan">
+            <directory>./tests/PHPStan</directory>
+        </testsuite>
     </testsuites>
     <php>
         <env name="PGSQL_HOST"     value="127.0.0.1"/>

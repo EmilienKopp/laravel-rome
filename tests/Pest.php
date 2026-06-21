@@ -1,9 +1,13 @@
 <?php
 
-uses(Splitstack\Rome\Tests\TestCase::class)->in('Feature');
+use Splitstack\Rome\Tests\Integration\Mysql\MysqlIntegrationTestCase;
+use Splitstack\Rome\Tests\Integration\Postgres\PostgresIntegrationTestCase;
+use Splitstack\Rome\Tests\TestCase;
 
-uses(Splitstack\Rome\Tests\Integration\Postgres\PostgresIntegrationTestCase::class)
+uses(TestCase::class)->in('Feature');
+
+uses(PostgresIntegrationTestCase::class)
     ->in('Integration/Postgres');
 
-uses(Splitstack\Rome\Tests\Integration\Mysql\MysqlIntegrationTestCase::class)
+uses(MysqlIntegrationTestCase::class)
     ->in('Integration/Mysql');

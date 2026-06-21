@@ -108,7 +108,8 @@ it('throws when $proxyTo is not defined and proxy() is called', function () {
 
 it('throws when proxy target class does not exist', function () {
     config(['rome.proxy_enabled' => true]);
-    $model = new class extends ReadOnlyModel {
+    $model = new class extends ReadOnlyModel
+    {
         protected static $proxyTo = 'App\Models\DoesNotExist';
 
         protected $table = 'some_view';

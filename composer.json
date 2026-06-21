@@ -19,10 +19,11 @@
     "illuminate/database": "^11.0|^12.0|^13.0"
   },
   "require-dev": {
-    "laravel/pint": "^1.0",
+    "laravel/pint": "^1.29",
     "orchestra/testbench": "^9.0|^10.0|^11.0",
     "pestphp/pest": "^3.0",
-    "pestphp/pest-plugin-drift": "^3.0"
+    "pestphp/pest-plugin-drift": "^3.0",
+    "phpstan/phpstan": "^2.0"
   },
   "autoload": {
     "psr-4": {
@@ -44,7 +45,9 @@
     "test:integration": "vendor/bin/pest --testsuite=Integration:Postgres,Integration:Mysql",
     "test:postgres": "vendor/bin/pest --testsuite=Integration:Postgres",
     "test:mysql": "vendor/bin/pest --testsuite=Integration:Mysql",
-    "lint": "vendor/bin/pint"
+    "lint": "vendor/bin/pint",
+    "analyse": "vendor/bin/phpstan analyse",
+    "test:phpstan": "vendor/bin/pest --testsuite=PHPStan"
   },
   "extra": {
     "laravel": {

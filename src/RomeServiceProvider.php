@@ -5,6 +5,7 @@ namespace Splitstack\Rome;
 use Illuminate\Support\ServiceProvider;
 use Splitstack\Rome\Console\Commands\MakeDbView;
 use Splitstack\Rome\Console\Commands\RegenerateViewCommand;
+use Splitstack\Rome\Console\Commands\RomeCheckCommand;
 
 class RomeServiceProvider extends ServiceProvider
 {
@@ -19,11 +20,16 @@ class RomeServiceProvider extends ServiceProvider
             $this->commands([
                 MakeDbView::class,
                 RegenerateViewCommand::class,
+                RomeCheckCommand::class,
             ]);
 
             $this->publishes([
                 __DIR__.'/../config/rome.php' => config_path('rome.php'),
             ], 'rome-config');
+
+            $this->publishes([
+                __DIR__.'/../extension.neon' => base_path('phpstan-rome.neon'),
+            ], 'rome-phpstan');
         }
     }
 }

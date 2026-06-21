@@ -56,7 +56,7 @@ class ViewDialect
     {
         return match ($this->driver) {
             'pgsql' => "SELECT COUNT(*) as count FROM pg_indexes WHERE tablename = ? AND indexdef LIKE '%UNIQUE%'",
-            'mysql' => "SELECT COUNT(*) as count FROM information_schema.statistics WHERE table_name = ? AND non_unique = 0 AND table_schema = DATABASE()",
+            'mysql' => 'SELECT COUNT(*) as count FROM information_schema.statistics WHERE table_name = ? AND non_unique = 0 AND table_schema = DATABASE()',
             default => throw new UnsupportedDriverException("Unique index check is not implemented for driver '{$this->driver}'."),
         };
     }

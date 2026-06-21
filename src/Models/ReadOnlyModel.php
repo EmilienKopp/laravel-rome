@@ -84,6 +84,8 @@ abstract class ReadOnlyModel extends Model
      * With forceFetch: false hydrates in-memory from $fillable — no query, but computed
      * column values come from the view. Audit $exclude before using this path.
      *
+     * @phpstan-return ($forceFetch is true ? ?Model : Model)
+     *
      * @throws ProxiedModelException if proxying is disabled or misconfigured
      */
     public function underlying(bool $forceFetch = true): ?Model
