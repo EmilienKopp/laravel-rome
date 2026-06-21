@@ -16,6 +16,6 @@ function validCalls(ValidProxyView $view): void
     $view->underlying()?->save();
 
     // Assigning the proxy without immediately writing through it is fine
-    $proxy = $view->proxy();
+    $proxy = $view->proxied();
     unset($proxy);
 }

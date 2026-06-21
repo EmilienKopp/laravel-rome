@@ -39,7 +39,7 @@ final class ViewDefinitionsMightCollideTest extends RuleTestCase
                     'Column "name" is computed in the view SQL for "violating_view" and also exists as a fillable '
                     .'attribute on proxied model "Splitstack\Rome\Tests\PHPStan\Fixtures\ViewCollision\ViolatingProxied", '
                     .'but is not listed in $exclude. '
-                    .'This may cause proxy()/underlying(false) to hydrate a computed value into a writable model. '
+                    .'This may cause proxied()/underlying(false) to hydrate a computed value into a writable model. '
                     .'Add "name" to $exclude on Splitstack\Rome\Tests\PHPStan\Fixtures\ViewCollision\ViolatingCollisionView, '
                     .'or rename the SQL alias.',
                     19,
@@ -82,7 +82,7 @@ final class ViewDefinitionsMightCollideTest extends RuleTestCase
                 [
                     'Column "email" in the view SQL for "foreign_view" is sourced from a joined table, not from '
                     .'the primary table of proxied model "Splitstack\Rome\Tests\PHPStan\Fixtures\ViewCollision\ForeignProxied". '
-                    .'This may cause proxy()/underlying(false) to write a stale or incorrect value. '
+                    .'This may cause proxied()/underlying(false) to write a stale or incorrect value. '
                     .'Add "email" to $exclude on Splitstack\Rome\Tests\PHPStan\Fixtures\ViewCollision\ForeignCollisionView, '
                     .'or use a distinct alias.',
                     19,

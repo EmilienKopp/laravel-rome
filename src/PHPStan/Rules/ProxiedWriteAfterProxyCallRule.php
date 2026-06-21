@@ -10,7 +10,7 @@ use PHPStan\Rules\RuleError;
 use PHPStan\Rules\RuleErrorBuilder;
 
 /**
- * Flags save() / delete() called directly on the result of proxy() or underlying(false).
+ * Flags save() / delete() called directly on the result of proxied() or underlying(false).
  *
  * Both methods return an in-memory hydrated instance that may carry computed view columns
  * absent from the backing table. Writing through such an instance can silently corrupt data
@@ -18,8 +18,8 @@ use PHPStan\Rules\RuleErrorBuilder;
  * underlying(true) to get a DB-fetched instance first.
  *
  * Detected patterns (chained calls only):
- *   $view->proxy()->save()
- *   $view->proxy()->delete()
+ *   $view->proxied()->save()
+ *   $view->proxied()->delete()
  *   $view->underlying(false)->save()
  *   $view->underlying(forceFetch: false)->delete()
  *
@@ -61,7 +61,7 @@ class ProxiedWriteAfterProxyCallRule implements Rule
         $innerMethod = $inner->name->name;
 
         if ($innerMethod === 'proxy') {
-            return [$this->buildError($outerMethod, 'proxy()')];
+            return [$this->buildError($outerMethod, 'proxied()')];
         }
 
         if ($innerMethod === 'underlying' && $this->isForceFetchFalse($inner)) {

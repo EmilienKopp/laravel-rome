@@ -10,8 +10,8 @@ class ViolatingProxyView extends ReadOnlyModel {}
 
 function violatingChains(ViolatingProxyView $view): void
 {
-    $view->proxy()->save();
-    $view->proxy()->delete();
+    $view->proxied()->save();
+    $view->proxied()->delete();
     $view->underlying(false)->save();
     $view->underlying(false)->delete();
     $view->underlying(forceFetch: false)->save();

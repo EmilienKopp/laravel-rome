@@ -85,7 +85,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | WARNING: enabling this allows ReadOnlyModel to route write operations
-    | (calls to update(), proxy(), underlying()) through a separate "proxied" model that maps
+    | (calls to update(), proxied(), underlying()) through a separate "proxied" model that maps
     | to the underlying table. This is powerful but carries real data-corruption
     | risk if your view computes columns whose names collide with columns in the
     | underlying table. Before enabling:

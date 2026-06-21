@@ -31,7 +31,7 @@ abstract class ReadOnlyModel extends Model
     protected static $proxyTo = null;
 
     /**
-     * Attributes stripped when hydrating via proxy() / underlying(forceFetch: false).
+     * Attributes stripped when hydrating via proxied() / underlying(forceFetch: false).
      * Use for computed columns whose names collide with columns in the proxied table.
      */
     protected static array $exclude = [];
@@ -102,6 +102,9 @@ abstract class ReadOnlyModel extends Model
         $attributes = array_intersect_key($this->attributesToArray(), array_flip($instance->getFillable()));
         $attributes = $this->excludeAttributes($attributes);
         $instance = $instance->newInstance($attributes, exists: true);
+        // Set the PK directly — newInstance() fills via mass-assignment so the key
+        // is silently dropped unless it's in $fillable.
+        $instance->setAttribute($instance->getKeyName(), $this->getKey());
         $instance->wasRecentlyCreated = false;
 
         return $instance;
@@ -113,7 +116,7 @@ abstract class ReadOnlyModel extends Model
      *
      * @throws ProxiedModelException if proxying is disabled or misconfigured
      */
-    public function proxy(): Model
+    public function proxied(): Model
     {
         return $this->underlying(forceFetch: false);
     }

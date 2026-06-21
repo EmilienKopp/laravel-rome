@@ -88,7 +88,7 @@ class ViewDefinitionsMightCollide implements Rule
             $errors[] = RuleErrorBuilder::message(sprintf(
                 'Column "%s" is computed in the view SQL for "%s" and also exists as a fillable '.
                 'attribute on proxied model "%s", but is not listed in $exclude. '.
-                'This may cause proxy()/underlying(false) to hydrate a computed value into a '.
+                'This may cause proxied()/underlying(false) to hydrate a computed value into a '.
                 'writable model. Add "%s" to $exclude on %s, or rename the SQL alias.',
                 $column,
                 $table,
@@ -112,7 +112,7 @@ class ViewDefinitionsMightCollide implements Rule
 
             $errors[] = RuleErrorBuilder::message(sprintf(
                 'Column "%s" in the view SQL for "%s" is sourced from a joined table, not from '.
-                'the primary table of proxied model "%s". This may cause proxy()/underlying(false) '.
+                'the primary table of proxied model "%s". This may cause proxied()/underlying(false) '.
                 'to write a stale or incorrect value. Add "%s" to $exclude on %s, or use a distinct alias.',
                 $column,
                 $table,

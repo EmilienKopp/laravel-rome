@@ -34,11 +34,11 @@ final class ProxiedWriteAfterProxyCallRuleTest extends RuleTestCase
             [__DIR__.'/../Fixtures/ProxiedWrite/violating.php'],
             [
                 [
-                    'Do not call save() on the result of proxy(): the in-memory instance may carry computed view columns absent from the backing table. Use update() on the ReadOnlyModel directly, or call underlying(true) to fetch a clean instance from the DB first.',
+                    'Do not call save() on the result of proxied(): the in-memory instance may carry computed view columns absent from the backing table. Use update() on the ReadOnlyModel directly, or call underlying(true) to fetch a clean instance from the DB first.',
                     13,
                 ],
                 [
-                    'Do not call delete() on the result of proxy(): the in-memory instance may carry computed view columns absent from the backing table. Use update() on the ReadOnlyModel directly, or call underlying(true) to fetch a clean instance from the DB first.',
+                    'Do not call delete() on the result of proxied(): the in-memory instance may carry computed view columns absent from the backing table. Use update() on the ReadOnlyModel directly, or call underlying(true) to fetch a clean instance from the DB first.',
                     14,
                 ],
                 [

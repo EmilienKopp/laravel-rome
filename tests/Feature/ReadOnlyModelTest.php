@@ -79,10 +79,10 @@ it('throws when proxy_enabled is false and underlying() is called', function () 
     $model->underlying();
 })->throws(ProxiedModelException::class, 'Proxy operations are disabled globally');
 
-it('throws when proxy_enabled is false and proxy() is called', function () {
+it('throws when proxy_enabled is false and proxied() is called', function () {
     config(['rome.proxy_enabled' => false]);
     $model = new RomeTest_ViewWithProxy;
-    $model->proxy();
+    $model->proxied();
 })->throws(ProxiedModelException::class, 'Proxy operations are disabled globally');
 
 // ---------------------------------------------------------------------------
@@ -101,9 +101,9 @@ it('throws when $proxyTo is not defined and underlying() is called', function ()
     (new RomeTest_ViewWithoutProxy)->underlying();
 })->throws(ProxiedModelException::class, 'No proxy target defined');
 
-it('throws when $proxyTo is not defined and proxy() is called', function () {
+it('throws when $proxyTo is not defined and proxied() is called', function () {
     config(['rome.proxy_enabled' => true]);
-    (new RomeTest_ViewWithoutProxy)->proxy();
+    (new RomeTest_ViewWithoutProxy)->proxied();
 })->throws(ProxiedModelException::class, 'No proxy target defined');
 
 it('throws when proxy target class does not exist', function () {
@@ -120,7 +120,7 @@ it('throws when proxy target class does not exist', function () {
 })->throws(ProxiedModelException::class, 'does not exist');
 
 // ---------------------------------------------------------------------------
-// underlying() and proxy() — in-memory hydration (no DB required)
+// underlying() and proxied() — in-memory hydration (no DB required)
 // ---------------------------------------------------------------------------
 
 it('underlying(forceFetch: false) hydrates a proxied model instance from fillable attributes', function () {
@@ -138,22 +138,22 @@ it('underlying(forceFetch: false) hydrates a proxied model instance from fillabl
         ->and($underlying->wasRecentlyCreated)->toBeFalse();
 });
 
-it('proxy() is an alias for underlying(forceFetch: false)', function () {
+it('proxied() is an alias for underlying(forceFetch: false)', function () {
     config(['rome.proxy_enabled' => true]);
 
     $view = new RomeTest_ViewWithProxy(['id' => 42, 'name' => 'Alice', 'status' => 'active']);
     $view->exists = true;
 
-    expect($view->proxy())->toEqual($view->underlying(forceFetch: false));
+    expect($view->proxied())->toEqual($view->underlying(forceFetch: false));
 });
 
-it('$exclude strips listed attributes when hydrating via proxy()', function () {
+it('$exclude strips listed attributes when hydrating via proxied()', function () {
     config(['rome.proxy_enabled' => true]);
 
     $view = new RomeTest_ViewWithExclusion(['id' => 1, 'name' => 'Bob', 'status' => 'active']);
     $view->exists = true;
 
-    $proxied = $view->proxy();
+    $proxied = $view->proxied();
 
     expect($proxied->name)->toBe('Bob')
         ->and($proxied->status)->toBeNull();

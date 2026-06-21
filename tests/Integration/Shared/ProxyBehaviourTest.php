@@ -32,11 +32,11 @@ function registerProxyBehaviourTests(): void
         expect($view->underlying(forceFetch: true))->toBeNull();
     });
 
-    it('proxy() hydrates a ConcreteModel in-memory without an extra query', function () {
+    it('proxied() hydrates a ConcreteModel in-memory without an extra query', function () {
         $this->helper->seedItem(1, 'Alice', 'active');
         $view = IntegrationViewWithProxy::find(1);
 
-        $proxy = $view->proxy();
+        $proxy = $view->proxied();
 
         expect($proxy)->toBeInstanceOf(IntegrationConcreteModel::class)
             ->and($proxy->name)->toBe('Alice')

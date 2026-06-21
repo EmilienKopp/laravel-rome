@@ -13,11 +13,11 @@ function registerExcludeBehaviourTests(): void
         expect($view->display_name)->toBe('Carol [active]');
     });
 
-    it('$exclude strips display_name when hydrating via proxy()', function () {
+    it('$exclude strips display_name when hydrating via proxied()', function () {
         $this->helper->seedItem(1, 'Carol', 'active');
         $view = IntegrationViewWithExclusion::find(1);
 
-        $proxy = $view->proxy();
+        $proxy = $view->proxied();
 
         expect($proxy->display_name)->toBeNull()
             ->and($proxy->name)->toBe('Carol');
