@@ -11,7 +11,13 @@
 
 Make database views first-class citizens in your Laravel app.
 
-Laravel Rome takes the friction out of working with database views: query them through proper Eloquent models, but also scaffold them or refresh materialized ones. Works with PostgreSQL and MySQL, with optional multi-tenant support.
+Laravel Rome gives you three complementary tools:
+
+- **`HasReadOnlyMode` trait** — add to any existing Eloquent model to get a `readonly()` guard on instances and a `fromView()` fluent builder that queries directly from a dedicated DB view, wrapping every result in a write-protected proxy.
+- **`ReadOnlyModel`** — a purpose-built Eloquent base class for models that live entirely on a view. Blocks direct writes, and optionally proxies mutations through a separate writable model. Works **fantastically** with Livewire components and anywhere else you want to hold view state in memory and write back through it without juggling two separate models.
+- **Tooling** — scaffold views with `make:dbview`, regenerate them across connections with `dbview:regen` (multi-tenant aware), refresh materialized views via a queued job, and catch misuse at build time with bundled PHPStan rules.
+
+Works with PostgreSQL and MySQL, with optional multi-tenant support.
 
 ## Requirements
 
@@ -88,16 +94,16 @@ return [
 `ReadOnlyModel` is the Eloquent model you point at a database view. Reading from it works exactly like any other model. Writing directly with `save()` or `delete()` is intentionally blocked.
 However, we provide a fluent way to proxy the underlying writable model for updates, and to access the underlying model instance for event dispatch or method calls.
 
-> **In most well-architected apps you won't need the proxy at all.** If you already know the record's ID — which is typical in a standard controller — reach for the writable model directly: `Product::find($id)->update(...)`. The proxy system pays off in situations where you're already holding a `ReadOnlyModel` instance and want to get a writable model from it without an extra query: a Livewire component whose state is the view model, a shared action/service class that expects a writable Eloquent model, or any place where splitting your state across two models would be awkward. If neither of those applies, skip `$proxyTo` entirely.
+> **In most well-architected apps you won't need the write-proxy at all.** If you already know the record's ID — which is typical in a standard controller — reach for the writable model directly: `Product::find($id)->update(...)`. The proxy system pays off in situations where you're already holding a `ReadOnlyModel` instance and want to get a writable model from it without an extra query: a Livewire component whose state is the view model, a shared action/service class that expects a writable Eloquent model, or any place where splitting your state across two models would be awkward. If neither of those applies, skip `$proxyTo` entirely.
 
 ### Enabling proxy operations
 
-Proxy operations (`update`, `underlying`, `proxy`) are **off by default**.
+Proxy operations (`update`, `underlying`, `proxied`) are **off by default**.
 
 To use them, you should:
 
 1. **Turn on the global switch** — set `rome.proxy_enabled => true` in `config/rome.php` or, if you don't need to publish, set the environment variable `ROME_PROXY_ENABLED=true`.
-2. **define `protected $proxyTo`** — the writable Eloquent model to proxy to.
+2. **Define `protected static $proxyTo`** — the writable Eloquent model to proxy to.
 
 Calls to proxy operations throw a `ProxiedModelException` if either of these conditions is not met.
 
@@ -207,6 +213,81 @@ $order = $summary->proxied(); // no query; $fillable attributes hydrated from th
 > ```
 >
 > `$exclude` has no effect on `underlying(forceFetch: true)`, which always reads from the database. Use `forceFetch: true` (the default) whenever you intend to write back through the proxied model. Only use `proxied()` or `underlying(false)` when you explicitly do not need the stored values and have audited both your column aliases and your `$exclude` list.
+
+---
+
+## HasReadOnlyMode
+
+`HasReadOnlyMode` is a trait you can add to **any** Eloquent model — writable or not — to expose a read-only interface to its table or a dedicated read view. It is a lighter alternative to `ReadOnlyModel` for situations where you want to keep a single model class but need a guarded, view-backed query path alongside it.
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use Splitstack\Rome\Concerns\HasReadOnlyMode;
+
+class Product extends Model
+{
+    use HasReadOnlyMode;
+
+    // Optional: point fromView() at a separate DB view instead of the model's own table.
+    // PHP 8.2+ forbids re-declaring the trait property with a different value,
+    // so set this via booted() rather than a property declaration.
+    protected static function booted(): void
+    {
+        static::$readOnlyView = 'products_summary_view';
+    }
+}
+```
+
+### `readonly()`
+
+Called on a model instance, returns a `ReadOnlyProxy` that passes attribute reads and non-mutating method calls through to the wrapped model but throws `ReadOnlyModelException` on `save()`, `delete()`, or `update()`.
+
+```php
+$product = Product::find($id);
+$proxy = $product->readonly();
+
+$proxy->name;       // ✓ read
+$proxy->toArray();  // ✓ serialisation
+$proxy->save();     // ✗ throws ReadOnlyModelException
+```
+
+### `fromView()`
+
+Static method. Returns a `ReadOnlyBuilder` — a custom Eloquent builder that:
+
+- queries from `$readOnlyView` when set, otherwise from the model's own table
+- wraps every result (`get`, `first`, `sole`, `find`) in a `ReadOnlyProxy`
+- throws `ReadOnlyModelException` immediately on `update()`, `delete()`, `create()`, or `firstOrCreate()`
+
+```php
+// Query the view; results are ReadOnlyProxy instances
+$products = Product::fromView()->where('status', 'active')->get();
+
+$product = Product::fromView()->find($id);
+$product->name;   // ✓
+$product->save(); // ✗ throws ReadOnlyModelException
+
+// findOrFail() throws ModelNotFoundException when the record is missing
+$product = Product::fromView()->findOrFail($id);
+
+// Bulk writes are blocked at the builder level, before any SQL is sent
+Product::fromView()->update(['status' => 'archived']); // ✗ throws ReadOnlyModelException
+```
+
+### ReadOnlyProxy
+
+`ReadOnlyProxy` is the wrapper returned by `readonly()` and by all `ReadOnlyBuilder` query methods. It is not specific to `HasReadOnlyMode` — you can also construct it directly when you need to prevent accidental mutation of any model instance:
+
+```php
+use Splitstack\Rome\Models\ReadOnlyProxy;
+
+$proxy = new ReadOnlyProxy($anyModel);
+$proxy->toArray();  // ✓
+$proxy->toJson();   // ✓
+$proxy->save();     // ✗ throws ReadOnlyModelException
+```
+
+Nesting a `ReadOnlyProxy` inside another `ReadOnlyProxy` is safe — the constructor always unwraps to the underlying `Model`.
 
 ---
 
