@@ -88,6 +88,8 @@ return [
 `ReadOnlyModel` is the Eloquent model you point at a database view. Reading from it works exactly like any other model. Writing directly with `save()` or `delete()` is intentionally blocked.
 However, we provide a fluent way to proxy the underlying writable model for updates, and to access the underlying model instance for event dispatch or method calls.
 
+> **In most well-architected apps you won't need the proxy at all.** If you already know the record's ID — which is typical in a standard controller — reach for the writable model directly: `Product::find($id)->update(...)`. The proxy system pays off in situations where you're already holding a `ReadOnlyModel` instance and want to get a writable model from it without an extra query: a Livewire component whose state is the view model, a shared action/service class that expects a writable Eloquent model, or any place where splitting your state across two models would be awkward. If neither of those applies, skip `$proxyTo` entirely.
+
 ### Enabling proxy operations
 
 Proxy operations (`update`, `underlying`, `proxy`) are **off by default**.
@@ -120,7 +122,7 @@ class OrderSummaryView extends ReadOnlyModel
 | ------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `$table`      | `string`                 | The view name in the database                                                                                                                                                   |
 | `$proxyTo`    | `class-string\|null`     | Writable model that owns the underlying table. Required to enable proxy operations                                                                                              |
-| `$exclude`    | `string[]`               | Columns stripped when hydrating via `proxy()` / `underlying(false)`. See [computed column warning](#danger-computed-columns-that-share-a-name-with-the-underlying-table-column) |
+| `$exclude`    | `string[]`               | Columns stripped when hydrating via `proxied()` / `underlying(false)`. See [computed column warning](#danger-computed-columns-that-share-a-name-with-the-underlying-table-column) |
 | `$primaryKey` | `string` (default: `id`) | The primary key column name. Override if your view's primary key is different.                                                                                |
 
 #### Primary Key configuration
@@ -164,21 +166,21 @@ Pass `forceFetch: false` to hydrate in-memory from the view's attributes interse
 $order = $summary->underlying(forceFetch: false); // no query; $fillable attributes only, faster but riskier
 ```
 
-#### `proxy()`
+#### `proxied()`
 
 Alias for `underlying(forceFetch: false)`. Intended for cases where you need a writable model instance for event dispatch, method calls, or other non-persistence uses and can accept the in-memory hydration trade-offs.
 
 ```php
-$order = $summary->proxy(); // no query; $fillable attributes hydrated from the view
+$order = $summary->proxied(); // no query; $fillable attributes hydrated from the view
 ```
 
 ---
 
 > **Danger: computed columns that share a name with the underlying table column**
 >
-> If your view computes a value under the same column name that exists in the proxied model's table, `proxy()` and `underlying(forceFetch: false)` will silently hydrate the proxied instance with the **computed value from the view**, not the raw stored value. Calling `save()` or `update()` on that instance can then write the computed value back to the table, corrupting data.
+> If your view computes a value under the same column name that exists in the proxied model's table, `proxied()` and `underlying(forceFetch: false)` will silently hydrate the proxied instance with the **computed value from the view**, not the raw stored value. Calling `save()` or `update()` on that instance can then write the computed value back to the table, corrupting data.
 >
-> Example: a view computes `total_price` as `quantity * unit_price`. The `orders` table also has a stored `total_price` column. Calling `proxy()` populates `$order->total_price` with the view-computed figure. If that instance is then updated, the computed figure overwrites the stored one.
+> Example: a view computes `total_price` as `quantity * unit_price`. The `orders` table also has a stored `total_price` column. Calling `proxied()` populates `$order->total_price` with the view-computed figure. If that instance is then updated, the computed figure overwrites the stored one.
 >
 > We provide a `php artisan rome:check` command that scans your view SQL for computed columns that share names with the proxied model's table columns, and reports any dangerous collisions it finds.
 > Be aware that this command is not perfect — it looks for simple patterns in the SQL and may miss complex cases or produce false positives. Always review the view SQL and your `$exclude` list carefully to ensure all computed columns are accounted for.
@@ -199,12 +201,12 @@ $order = $summary->proxy(); // no query; $fillable attributes hydrated from the 
 > {
 >     protected static $proxyTo = Order::class;
 >
->     // Stripped when hydrating via proxy() / underlying(false)
+>     // Stripped when hydrating via proxied() / underlying(false)
 >     protected static array $exclude = ['total_price', 'item_count'];
 > }
 > ```
 >
-> `$exclude` has no effect on `underlying(forceFetch: true)`, which always reads from the database. Use `forceFetch: true` (the default) whenever you intend to write back through the proxied model. Only use `proxy()` or `underlying(false)` when you explicitly do not need the stored values and have audited both your column aliases and your `$exclude` list.
+> `$exclude` has no effect on `underlying(forceFetch: true)`, which always reads from the database. Use `forceFetch: true` (the default) whenever you intend to write back through the proxied model. Only use `proxied()` or `underlying(false)` when you explicitly do not need the stored values and have audited both your column aliases and your `$exclude` list.
 
 ---
 
@@ -392,10 +394,10 @@ $summary->save(); // ❌ PHPStan: Cannot call save() on OrderSummaryView: this i
 
 #### `ProxiedWriteAfterProxyCallRule`
 
-Flags `save()` or `delete()` chained directly onto `proxy()` or `underlying(false)`. Both return an in-memory instance hydrated from the view's attributes, which may contain computed column values that don't exist in the backing table. Writing through such an instance can silently corrupt data.
+Flags `save()` or `delete()` chained directly onto `proxied()` or `underlying(false)`. Both return an in-memory instance hydrated from the view's attributes, which may contain computed column values that don't exist in the backing table. Writing through such an instance can silently corrupt data.
 
 ```php
-$summary->proxy()->save();                       // ❌ PHPStan: Do not call save() on the result of proxy()…
+$summary->proxied()->save();                       // ❌ PHPStan: Do not call save() on the result of proxied()…
 $summary->underlying(false)->save();             // ❌ PHPStan: Do not call save() on the result of underlying(false)…
 $summary->underlying(forceFetch: false)->save(); // ❌ same
 
@@ -403,7 +405,7 @@ $summary->underlying(true)->save();  // ✓ DB-fetched — safe
 $summary->update(['status' => 'x']); // ✓ correct write path
 ```
 
-> The rule catches chained calls only. Assigning the result to a variable first (`$p = $view->proxy(); $p->save()`) is not currently detected.
+> The rule catches chained calls only. Assigning the result to a variable first (`$p = $view->proxied(); $p->save()`) is not currently detected.
 
 ## License
 
