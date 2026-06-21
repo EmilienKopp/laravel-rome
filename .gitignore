@@ -2,6 +2,7 @@
 /.idea
 /.vscode
 composer.lock
+composer.phar
 .phpunit.cache
 .pest.cache
 /coverage
