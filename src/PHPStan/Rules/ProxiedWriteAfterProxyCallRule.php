@@ -60,7 +60,7 @@ class ProxiedWriteAfterProxyCallRule implements Rule
 
         $innerMethod = $inner->name->name;
 
-        if ($innerMethod === 'proxy') {
+        if ($innerMethod === 'proxied') {
             return [$this->buildError($outerMethod, 'proxied()')];
         }
 
