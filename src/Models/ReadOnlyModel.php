@@ -20,11 +20,18 @@ abstract class ReadOnlyModel extends Model
 
     /**
      * The model class to proxy write operations to.
-     * Must be defined in child classes.
+     * Setting this opts the model in to proxy operations.
+     * rome.proxy_enabled must also be true, or all proxy calls throw regardless.
      *
      * @var class-string<Model>|null
      */
-    protected static $proxiedModelClass = null;
+    protected static $proxyTo = null;
+
+    /**
+     * Attributes stripped when hydrating via proxy() / underlying(forceFetch: false).
+     * Use for computed columns whose names collide with columns in the proxied table.
+     */
+    protected static array $exclude = [];
 
     /**
      * @throws ReadOnlyModelException
@@ -42,49 +49,49 @@ abstract class ReadOnlyModel extends Model
      */
     public function update(array $attributes = [], array $options = [])
     {
+        $this->assertProxyEnabled();
+
         $proxiedModel = $this->getProxiedModelInstance();
         $existingRecord = $proxiedModel->find($this->getKey());
+
         if (! $existingRecord) {
             throw new ProxiedModelException('Record does not exist in proxied model.');
         }
+
         $existingRecord->update($attributes, $options);
 
         return static::find($this->getKey());
     }
 
     /**
-     * @param  array<string, mixed>  $options
-     *
      * @throws ReadOnlyModelException
      */
     public function save(array $options = [])
     {
-        throw new ReadOnlyModelException('Cannot save read-only model directly. Define a "proxiedModelClass" and use update() instead.');
+        throw new ReadOnlyModelException('Cannot save read-only model directly. Define $proxyTo and use update() instead.');
     }
 
     /**
-     * Get an instance of the proxied model.
+     * Returns a proxied model instance.
+     * With forceFetch: true (default) queries the proxied table — all attributes present.
+     * With forceFetch: false hydrates in-memory from $fillable — no query, but computed
+     * column values come from the view. Audit $exclude before using this path.
+     *
+     * @throws ProxiedModelException
      */
-    protected function getProxiedModelInstance(): Model
+    public function underlying(bool $forceFetch = true): ?Model
     {
-        $modelClass = static::getProxiedModelClass();
+        $this->assertProxyEnabled();
 
-        return new $modelClass;
-    }
-
-    /**
-     * Hydrate an instance of the proxied model with attributes from this read-only model
-     * without a database query.
-     */
-    public function underlying(bool $forceFetch = false): ?Model
-    {
         if ($forceFetch) {
             $modelClass = static::getProxiedModelClass();
 
             return $modelClass::find($this->getKey());
         }
-        $instance = new static::$proxiedModelClass;
+
+        $instance = new static::$proxyTo;
         $attributes = array_intersect_key($this->attributesToArray(), array_flip($instance->getFillable()));
+        $attributes = $this->excludeAttributes($attributes);
         $instance = $instance->newInstance($attributes, exists: true);
         $instance->wasRecentlyCreated = false;
 
@@ -92,30 +99,58 @@ abstract class ReadOnlyModel extends Model
     }
 
     /**
-     * Hydrate an instance of the proxied model with attributes from this read-only model
-     * without a database query.
-     * Alias for underlying()
+     * Hydrates a proxied model instance in-memory from the view's attributes.
+     * Alias for underlying(forceFetch: false).
+     *
+     * @throws ProxiedModelException
      */
     public function proxy(): Model
     {
-        return $this->underlying();
+        return $this->underlying(forceFetch: false);
+    }
+
+    protected function getProxiedModelInstance(): Model
+    {
+        return new (static::getProxiedModelClass());
     }
 
     /**
-     * Get the proxied model class name.
-     *
      * @throws ProxiedModelException
      */
     protected static function getProxiedModelClass(): string
     {
-        if (! static::$proxiedModelClass) {
-            throw new ProxiedModelException('Proxied model class not defined. Set $proxiedModelClass in your model.');
+        if (! static::$proxyTo) {
+            throw new ProxiedModelException('No proxy target defined. Set $proxyTo on '.static::class.'.');
         }
 
-        if (! class_exists(static::$proxiedModelClass)) {
-            throw new ProxiedModelException("Proxied model class '".static::$proxiedModelClass."' does not exist.");
+        if (! class_exists(static::$proxyTo)) {
+            throw new ProxiedModelException("Proxy target '".static::$proxyTo."' does not exist.");
         }
 
-        return static::$proxiedModelClass;
+        return static::$proxyTo;
+    }
+
+    /**
+     * @throws ProxiedModelException
+     */
+    private function assertProxyEnabled(): void
+    {
+        if (! config('rome.proxy_enabled', false)) {
+            throw new ProxiedModelException(
+                'Proxy operations are disabled globally. Set rome.proxy_enabled to true in config/rome.php. '.
+                'Read the warning in that config before enabling.'
+            );
+        }
+
+        if (! static::$proxyTo) {
+            throw new ProxiedModelException(
+                'No proxy target defined. Set $proxyTo on '.static::class.'.'
+            );
+        }
+    }
+
+    private function excludeAttributes(array $attributes): array
+    {
+        return array_diff_key($attributes, array_flip(static::$exclude));
     }
 }

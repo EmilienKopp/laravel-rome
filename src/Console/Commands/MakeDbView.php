@@ -2,24 +2,32 @@
 
 namespace Splitstack\Rome\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\File;
+use Illuminate\Console\GeneratorCommand;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputOption;
 
+use function Laravel\Prompts\select;
 use function Laravel\Prompts\text;
 
-class MakeDbView extends Command
+class MakeDbView extends GeneratorCommand
 {
-    protected $signature = 'make:dbview {name?}';
+    protected $name = 'make:dbview';
 
     protected $description = 'Create a database view with migration, SQL file, and model';
 
+    protected $type = 'View model';
+
     private string $migrationFilename;
+
+    private string $dbViewName;
+
+    private array $sourceColumns = [];
 
     public function handle(): void
     {
-        // Get the view name
-        $name = $this->argument('name') ?: text(
+        $rawName = $this->argument('name') ?: text(
             label: 'What is the name of the view?',
             placeholder: 'e.g., business_report',
             required: true,
@@ -30,7 +38,7 @@ class MakeDbView extends Command
             }
         );
 
-        $name = Str::snake($name);
+        $name = Str::snake($rawName);
 
         if (strlen($name) < 3 || ! preg_match('/^[a-z][a-z0-9_]*$/', $name)) {
             $this->error('Invalid view name. Use only lowercase letters, digits, and underscores (must start with a letter).');
@@ -38,59 +46,173 @@ class MakeDbView extends Command
             return;
         }
 
-        // Generate related names
-        $viewName = $name.'_view';
-        $modelName = Str::studly($viewName);
-        $migrationName = 'create_'.$viewName;
+        $this->dbViewName = $name.'_view';
+        $modelName = Str::studly($this->dbViewName);
+        $migrationName = 'create_'.$this->dbViewName;
         $sqlFileName = $name.'.sql';
 
-        $this->info("Creating database view: {$viewName}");
-        $this->info("Model name: {$modelName}");
-        $this->info("Migration name: {$migrationName}");
-        $this->info("SQL file: {$sqlFileName}");
+        $this->sourceColumns = $this->resolveSourceColumns();
 
-        // Create directories if they don't exist
-        File::ensureDirectoryExists(database_path('views'));
-        File::ensureDirectoryExists(app_path('Models/Views'));
+        $this->files->ensureDirectoryExists(database_path('views'));
 
-        // Create files
-        $this->createSqlFile($sqlFileName, $viewName);
-        $this->createMigration($migrationName, $sqlFileName, $viewName);
-        $this->createModel($modelName, $viewName);
+        $this->createSqlFile($sqlFileName);
+        $this->createMigration($migrationName, $sqlFileName);
 
-        $this->info('Database view created successfully!');
-        $this->info('Files created:');
+        // Use GeneratorCommand machinery for the model file
+        $qualifiedClass = $this->qualifyClass($modelName);
+        $path = $this->getPath($qualifiedClass);
+
+        if ($this->alreadyExists($modelName)) {
+            $this->components->error("{$this->type} [{$modelName}] already exists.");
+
+            return;
+        }
+
+        $this->makeDirectory($path);
+        $this->files->put($path, $this->sortImports($this->buildClass($qualifiedClass)));
+
+        $this->components->info("{$this->type} [{$path}] created successfully.");
         $this->line("- database/views/{$sqlFileName}");
         $this->line("- {$this->migrationFilename}");
-        $this->line("- app/Models/Views/{$modelName}.php");
-
         $this->info('Next steps:');
-        $this->line('1. Add your SQL query to the generated SQL file');
+        $this->line('1. Edit the SQL file with your query');
         $this->line('2. Run: php artisan migrate');
-        $this->line("3. Use your model: App\\Models\\Views\\{$modelName}");
+        $this->line("3. Use: {$qualifiedClass}");
     }
 
-    private function createSqlFile(string $fileName, string $viewName): void
+    protected function getStub(): string
     {
-        $sqlContent = <<<SQL
-CREATE OR REPLACE VIEW {$viewName} AS
-
-SELECT 
-    -- Add your SELECT statement here
-    id,
-    created_at,
-    updated_at
-FROM your_table;
-SQL;
-
-        File::put(database_path("views/{$fileName}"), $sqlContent);
+        return __DIR__.'/stubs/dbview.model.stub';
     }
 
-    private function createMigration(string $migrationName, string $sqlFileName, string $viewName): void
+    protected function getDefaultNamespace($rootNamespace): string
     {
-        $timestamp = date('Y_m_d_His');
+        $path = config('rome.readonly_model_path', 'Models/Views');
 
-        $content = <<<PHP
+        return $rootNamespace.'\\'.str_replace('/', '\\', $path);
+    }
+
+    protected function buildClass($name): string
+    {
+        $stub = parent::buildClass($name);
+
+        $fillable = empty($this->sourceColumns)
+            ? '[]'
+            : "[\n        '".implode("',\n        '", $this->sourceColumns)."',\n    ]";
+
+        return str_replace(
+            ['{{ table }}', '{{table}}', '{{ fillable }}', '{{fillable}}'],
+            [$this->dbViewName, $this->dbViewName, $fillable, $fillable],
+            $stub
+        );
+    }
+
+    protected function getArguments(): array
+    {
+        return [
+            ['name', InputArgument::OPTIONAL, 'The snake_case name for the database view (without _view suffix)'],
+        ];
+    }
+
+    protected function getOptions(): array
+    {
+        return [
+            ['model', null, InputOption::VALUE_OPTIONAL, 'Model class to seed the SELECT from (skips prompt)'],
+        ];
+    }
+
+    /** @return string[] */
+    private function resolveSourceColumns(): array
+    {
+        $modelClass = $this->option('model');
+
+        if (! $modelClass) {
+            $models = $this->discoverModels();
+
+            if (empty($models)) {
+                return [];
+            }
+
+            $choice = select(
+                label: 'Seed SELECT from a model? (optional)',
+                options: array_merge(['(none)'], $models),
+                default: '(none)',
+            );
+
+            if ($choice === '(none)') {
+                return [];
+            }
+
+            $modelClass = $choice;
+        }
+
+        if (! class_exists($modelClass)) {
+            $this->warn("Model class [{$modelClass}] not found — skipping column seeding.");
+
+            return [];
+        }
+
+        return (new $modelClass)->getFillable();
+    }
+
+    /** @return string[] */
+    private function discoverModels(): array
+    {
+        $extraPaths = config('rome.model_scan_paths', []);
+        $dirs = array_merge(['Models'], (array) $extraPaths);
+        $models = [];
+
+        foreach ($dirs as $dir) {
+            $path = app_path($dir);
+
+            if (! $this->files->isDirectory($path)) {
+                continue;
+            }
+
+            foreach ($this->files->allFiles($path) as $file) {
+                if ($file->getExtension() !== 'php') {
+                    continue;
+                }
+
+                $relative = Str::of($file->getRealPath())
+                    ->after(app_path().DIRECTORY_SEPARATOR)
+                    ->replaceLast('.php', '')
+                    ->replace(DIRECTORY_SEPARATOR, '\\');
+
+                $class = $this->rootNamespace().$relative;
+
+                if (class_exists($class) && is_subclass_of($class, Model::class)) {
+                    $models[] = $class;
+                }
+            }
+        }
+
+        sort($models);
+
+        return $models;
+    }
+
+    private function createSqlFile(string $fileName): void
+    {
+        $selectLines = empty($this->sourceColumns)
+            ? "    -- Add your SELECT statement here\n    id,\n    created_at,\n    updated_at"
+            : '    '.implode(",\n    ", $this->sourceColumns);
+
+        $sqlContent = "CREATE OR REPLACE VIEW {$this->dbViewName} AS\n\nSELECT\n{$selectLines}\nFROM your_table;";
+
+        $this->files->put(database_path("views/{$fileName}"), $sqlContent);
+    }
+
+    private function createMigration(string $migrationName, string $sqlFileName): void
+    {
+        $viewName = $this->dbViewName;
+
+        $path = $this->laravel['migration.creator']->create(
+            $migrationName,
+            $this->laravel->databasePath('migrations')
+        );
+
+        $this->files->put($path, <<<PHP
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -98,51 +220,18 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         DB::statement(file_get_contents(database_path('views/{$sqlFileName}')));
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         DB::statement('DROP VIEW IF EXISTS {$viewName}');
     }
 };
-PHP;
+PHP);
 
-        $filename = "{$timestamp}_{$migrationName}.php";
-        $this->migrationFilename = "database/migrations/{$timestamp}_{$migrationName}.php";
-        File::put(
-            database_path("migrations/{$filename}"),
-            $content
-        );
-    }
-
-    private function createModel(string $modelName, string $viewName): void
-    {
-        $content = <<<PHP
-<?php
-
-namespace App\Models\Views;
-
-use Splitstack\Rome\Models\ReadOnlyModel;
-
-class {$modelName} extends ReadOnlyModel
-{
-    protected \$table = '{$viewName}';
-
-    protected \$fillable = [];
-
-    public \$timestamps = false;
-}
-PHP;
-
-        File::put(app_path("Models/Views/{$modelName}.php"), $content);
+        $this->migrationFilename = 'database/migrations/'.basename($path);
     }
 }

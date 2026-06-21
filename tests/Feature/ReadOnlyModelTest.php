@@ -23,9 +23,22 @@ class RomeTest_ViewWithProxy extends ReadOnlyModel
 {
     protected $table = 'rome_test_items_view';
 
-    protected static $proxiedModelClass = RomeTest_ConcreteModel::class;
+    protected static $proxyTo = RomeTest_ConcreteModel::class;
 
     protected $fillable = ['name', 'status'];
+
+    public $timestamps = false;
+}
+
+class RomeTest_ViewWithExclusion extends ReadOnlyModel
+{
+    protected $table = 'rome_test_items_view';
+
+    protected static $proxyTo = RomeTest_ConcreteModel::class;
+
+    protected $fillable = ['name', 'status'];
+
+    protected static array $exclude = ['status'];
 
     public $timestamps = false;
 }
@@ -49,36 +62,73 @@ it('throws ReadOnlyModelException on save', function () {
     (new RomeTest_ViewWithoutProxy)->save();
 })->throws(ReadOnlyModelException::class, 'Cannot save read-only model');
 
-it('throws ProxiedModelException on update when proxied class is not defined', function () {
+// ---------------------------------------------------------------------------
+// Global proxy_enabled gate
+// ---------------------------------------------------------------------------
+
+it('throws when proxy_enabled is false and update() is called', function () {
+    config(['rome.proxy_enabled' => false]);
+    $model = new RomeTest_ViewWithProxy;
+    $model->id = 1;
+    $model->update(['name' => 'changed']);
+})->throws(ProxiedModelException::class, 'Proxy operations are disabled globally');
+
+it('throws when proxy_enabled is false and underlying() is called', function () {
+    config(['rome.proxy_enabled' => false]);
+    $model = new RomeTest_ViewWithProxy;
+    $model->underlying();
+})->throws(ProxiedModelException::class, 'Proxy operations are disabled globally');
+
+it('throws when proxy_enabled is false and proxy() is called', function () {
+    config(['rome.proxy_enabled' => false]);
+    $model = new RomeTest_ViewWithProxy;
+    $model->proxy();
+})->throws(ProxiedModelException::class, 'Proxy operations are disabled globally');
+
+// ---------------------------------------------------------------------------
+// Per-model $proxyTo gate
+// ---------------------------------------------------------------------------
+
+it('throws when $proxyTo is not defined and update() is called', function () {
+    config(['rome.proxy_enabled' => true]);
     $model = new RomeTest_ViewWithoutProxy;
     $model->id = 1;
     $model->update(['name' => 'changed']);
-})->throws(ProxiedModelException::class, 'Proxied model class not defined');
+})->throws(ProxiedModelException::class, 'No proxy target defined');
 
-it('throws ProxiedModelException on update when proxied class does not exist', function () {
+it('throws when $proxyTo is not defined and underlying() is called', function () {
+    config(['rome.proxy_enabled' => true]);
+    (new RomeTest_ViewWithoutProxy)->underlying();
+})->throws(ProxiedModelException::class, 'No proxy target defined');
+
+it('throws when $proxyTo is not defined and proxy() is called', function () {
+    config(['rome.proxy_enabled' => true]);
+    (new RomeTest_ViewWithoutProxy)->proxy();
+})->throws(ProxiedModelException::class, 'No proxy target defined');
+
+it('throws when proxy target class does not exist', function () {
+    config(['rome.proxy_enabled' => true]);
     $model = new class extends ReadOnlyModel {
-        protected static $proxiedModelClass = 'App\Models\DoesNotExist';
+        protected static $proxyTo = 'App\Models\DoesNotExist';
 
         protected $table = 'some_view';
 
         public $timestamps = false;
     };
     $model->update(['name' => 'changed']);
-})->throws(ProxiedModelException::class, "does not exist");
+})->throws(ProxiedModelException::class, 'does not exist');
 
 // ---------------------------------------------------------------------------
-// underlying() — hydration without a DB query
+// underlying() and proxy() — in-memory hydration (no DB required)
 // ---------------------------------------------------------------------------
 
-it('underlying() hydrates a proxied model instance from fillable attributes', function () {
-    $view = new RomeTest_ViewWithProxy([
-        'id' => 42,
-        'name' => 'Alice',
-        'status' => 'active',
-    ]);
+it('underlying(forceFetch: false) hydrates a proxied model instance from fillable attributes', function () {
+    config(['rome.proxy_enabled' => true]);
+
+    $view = new RomeTest_ViewWithProxy(['id' => 42, 'name' => 'Alice', 'status' => 'active']);
     $view->exists = true;
 
-    $underlying = $view->underlying();
+    $underlying = $view->underlying(forceFetch: false);
 
     expect($underlying)->toBeInstanceOf(RomeTest_ConcreteModel::class)
         ->and($underlying->name)->toBe('Alice')
@@ -87,12 +137,47 @@ it('underlying() hydrates a proxied model instance from fillable attributes', fu
         ->and($underlying->wasRecentlyCreated)->toBeFalse();
 });
 
+it('proxy() is an alias for underlying(forceFetch: false)', function () {
+    config(['rome.proxy_enabled' => true]);
+
+    $view = new RomeTest_ViewWithProxy(['id' => 42, 'name' => 'Alice', 'status' => 'active']);
+    $view->exists = true;
+
+    expect($view->proxy())->toEqual($view->underlying(forceFetch: false));
+});
+
+it('$exclude strips listed attributes when hydrating via proxy()', function () {
+    config(['rome.proxy_enabled' => true]);
+
+    $view = new RomeTest_ViewWithExclusion(['id' => 1, 'name' => 'Bob', 'status' => 'active']);
+    $view->exists = true;
+
+    $proxied = $view->proxy();
+
+    expect($proxied->name)->toBe('Bob')
+        ->and($proxied->status)->toBeNull();
+});
+
+it('$exclude strips listed attributes when hydrating via underlying(forceFetch: false)', function () {
+    config(['rome.proxy_enabled' => true]);
+
+    $view = new RomeTest_ViewWithExclusion(['id' => 1, 'name' => 'Bob', 'status' => 'active']);
+    $view->exists = true;
+
+    $underlying = $view->underlying(forceFetch: false);
+
+    expect($underlying->name)->toBe('Bob')
+        ->and($underlying->status)->toBeNull();
+});
+
 // ---------------------------------------------------------------------------
-// update() — requires a real DB to reach the "record not found" branch
+// update() — requires a real DB
 // ---------------------------------------------------------------------------
 
 describe('update() with a real DB', function () {
     beforeEach(function () {
+        config(['rome.proxy_enabled' => true]);
+
         Schema::create('rome_test_items', function ($table) {
             $table->unsignedBigInteger('id')->primary();
             $table->string('name');
