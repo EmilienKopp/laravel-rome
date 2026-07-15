@@ -21,6 +21,8 @@ abstract class ReadOnlyModel extends Model
 
     public $incrementing = false;
 
+    protected $fillable = [];
+
     /**
      * The model class to proxy write operations to.
      * Setting this opts the model in to proxy operations.
