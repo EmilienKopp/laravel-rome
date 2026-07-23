@@ -37,7 +37,7 @@ function registerReadOnlyModelBehaviourTests(): void
     })->throws(ReadOnlyModelException::class, 'Cannot delete from read-only model');
 
     it('throws ReadOnlyModelException on save()', function () {
-        $model = new IntegrationViewWithproxied(['name' => 'new']);
+        $model = new IntegrationViewWithProxy(['name' => 'new']);
         $model->save();
     })->throws(ReadOnlyModelException::class, 'Cannot save read-only model');
 }
